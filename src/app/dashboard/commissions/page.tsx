@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { DealsTable } from '@/components/commissions/deals-table'
 import { ActionBar } from '@/components/commissions/action-bar'
 import type { FundedDeal, DealWithPayment, PaymentStatus } from '@/types/database'
@@ -18,7 +18,7 @@ export default function CommissionsPage() {
     async function fetchDeals() {
       try {
         setLoading(true)
-        const { data, error } = await supabase
+        const { data, error } = await getSupabase()
           .from('funded_deals')
           .select('*')
           .order('funded_date', { ascending: false })

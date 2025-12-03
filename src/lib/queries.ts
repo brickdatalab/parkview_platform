@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { getSupabase } from './supabase'
 import type { FundedDeal, RepSummary } from '@/types/database'
 
 export interface DashboardFilters {
@@ -72,7 +72,7 @@ function isInQuarter(dateStr: string | null, quarter: string, year: number): boo
  * Fetch all funded deals from Supabase
  */
 export async function fetchFundedDeals(): Promise<FundedDeal[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('funded_deals')
     .select('*')
     .order('funded_date', { ascending: false })
@@ -89,7 +89,7 @@ export async function fetchFundedDeals(): Promise<FundedDeal[]> {
  * Fetch unique reps from funded deals
  */
 export async function fetchUniqueReps(): Promise<string[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('funded_deals')
     .select('rep')
     .not('rep', 'is', null)
@@ -107,7 +107,7 @@ export async function fetchUniqueReps(): Promise<string[]> {
  * Fetch unique lenders from funded deals
  */
 export async function fetchUniqueLenders(): Promise<string[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('funded_deals')
     .select('lender')
     .not('lender', 'is', null)
