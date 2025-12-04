@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { FundedDealsTable } from '@/components/dashboard/funded-deals-table'
@@ -10,6 +10,7 @@ import type { DashboardSummary } from '@/lib/queries'
 
 export default function DashboardPage() {
   const [allDeals, setAllDeals] = useState<FundedDeal[]>([])
+  const [filteredDeals, setFilteredDeals] = useState<FundedDeal[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,6 +21,7 @@ export default function DashboardPage() {
         setError(null)
         const dealsData = await fetchFundedDeals()
         setAllDeals(dealsData)
+        setFilteredDeals(dealsData)
       } catch (err) {
         console.error('Error loading dashboard data:', err)
         setError('Failed to load dashboard data. Please try again.')
@@ -30,17 +32,21 @@ export default function DashboardPage() {
     loadData()
   }, [])
 
+  const handleFilteredDataChange = useCallback((data: FundedDeal[]) => {
+    setFilteredDeals(data)
+  }, [])
+
   const summary = useMemo<DashboardSummary>(() => {
-    if (allDeals.length === 0) {
+    if (filteredDeals.length === 0) {
       return { totalFunded: 0, totalCommission: 0, dealCount: 0, avgFactorRate: 0 }
     }
-    const totalFunded = allDeals.reduce((sum, deal) => sum + (deal.funded_amount ?? 0), 0)
-    const totalCommission = allDeals.reduce((sum, deal) => sum + (deal.commission ?? 0) + (deal.psf ?? 0), 0)
-    const dealCount = allDeals.length
-    const factorRates = allDeals.map(deal => deal.factor_rate).filter((rate): rate is number => rate !== null && rate > 0)
+    const totalFunded = filteredDeals.reduce((sum, deal) => sum + (deal.funded_amount ?? 0), 0)
+    const totalCommission = filteredDeals.reduce((sum, deal) => sum + (deal.commission ?? 0) + (deal.psf ?? 0), 0)
+    const dealCount = filteredDeals.length
+    const factorRates = filteredDeals.map(deal => deal.factor_rate).filter((rate): rate is number => rate !== null && rate > 0)
     const avgFactorRate = factorRates.length > 0 ? factorRates.reduce((sum, rate) => sum + rate, 0) / factorRates.length : 0
     return { totalFunded, totalCommission, dealCount, avgFactorRate }
-  }, [allDeals])
+  }, [filteredDeals])
 
   if (error) {
     return (
@@ -65,14 +71,13 @@ export default function DashboardPage() {
     <>
       <SiteHeader title="Funded Deals" />
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">Funded Deals</h1>
-          <p className="text-sm text-muted-foreground">
-            View and analyze funded deals from Master Funded
-          </p>
-        </div>
         <SummaryCards summary={summary} isLoading={isLoading} />
-        <FundedDealsTable data={allDeals} totalCount={allDeals.length} isLoading={isLoading} />
+        <FundedDealsTable
+          data={allDeals}
+          totalCount={allDeals.length}
+          isLoading={isLoading}
+          onFilteredDataChange={handleFilteredDataChange}
+        />
       </div>
     </>
   )

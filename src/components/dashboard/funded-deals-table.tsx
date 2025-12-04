@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Table,
   TableBody,
@@ -60,6 +60,7 @@ interface FundedDealsTableProps {
   data: FundedDeal[]
   totalCount: number
   isLoading?: boolean
+  onFilteredDataChange?: (filteredData: FundedDeal[]) => void
 }
 
 interface SortableHeaderProps {
@@ -191,7 +192,8 @@ function GroupHeader({
 export function FundedDealsTable({
   data,
   totalCount,
-  isLoading
+  isLoading,
+  onFilteredDataChange
 }: FundedDealsTableProps) {
   // Table state
   const [tableState, setTableState] = useState<TableState>(() => ({
@@ -232,6 +234,11 @@ export function FundedDealsTable({
 
     return { groups, flatData: sorted }
   }, [data, tableState, expandedGroups])
+
+  // Notify parent of filtered data changes
+  useEffect(() => {
+    onFilteredDataChange?.(processedData.flatData)
+  }, [processedData.flatData, onFilteredDataChange])
 
   // Calculate pagination based on flat data (ungrouped)
   const totalPages = getTotalPages(processedData.flatData.length, tableState.pageSize)

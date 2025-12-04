@@ -1,5 +1,5 @@
 import { DollarSign, TrendingUp, FileText, Percent } from "lucide-react"
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DashboardSummary } from "@/lib/queries"
 import { formatLargeNumber, formatCurrency, formatNumber, formatFactorRate } from "@/lib/queries"
@@ -11,14 +11,13 @@ interface SummaryCardsProps {
 
 function CardSkeleton() {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-8 w-32" />
-      </CardHeader>
-      <CardFooter>
-        <Skeleton className="h-4 w-20" />
-      </CardFooter>
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-4 w-4" />
+      </div>
+      <Skeleton className="mt-2 h-7 w-24" />
+      <Skeleton className="mt-1 h-3 w-16" />
     </Card>
   )
 }
@@ -26,7 +25,7 @@ function CardSkeleton() {
 export function SummaryCards({ summary, isLoading }: SummaryCardsProps) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
@@ -36,59 +35,49 @@ export function SummaryCards({ summary, isLoading }: SummaryCardsProps) {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Total Funded</CardDescription>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardTitle className="px-6 text-2xl font-bold">
-          {formatLargeNumber(summary.totalFunded)}
-        </CardTitle>
-        <CardFooter>
-          <p className="text-xs text-muted-foreground">
-            {formatCurrency(summary.totalFunded)}
-          </p>
-        </CardFooter>
+    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+      <Card className="p-4">
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total Funded</span>
+            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="mt-1 text-xl font-bold">{formatLargeNumber(summary.totalFunded)}</div>
+          <div className="text-[11px] text-muted-foreground">{formatCurrency(summary.totalFunded)}</div>
+        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Total Commission</CardDescription>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardTitle className="px-6 text-2xl font-bold">
-          {formatLargeNumber(summary.totalCommission)}
-        </CardTitle>
-        <CardFooter>
-          <p className="text-xs text-muted-foreground">Commission + PSF</p>
-        </CardFooter>
+      <Card className="p-4">
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Total Commission</span>
+            <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="mt-1 text-xl font-bold">{formatLargeNumber(summary.totalCommission)}</div>
+          <div className="text-[11px] text-muted-foreground">Commission + PSF</div>
+        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Deal Count</CardDescription>
-          <FileText className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardTitle className="px-6 text-2xl font-bold">
-          {formatNumber(summary.dealCount)}
-        </CardTitle>
-        <CardFooter>
-          <p className="text-xs text-muted-foreground">Funded deals</p>
-        </CardFooter>
+      <Card className="p-4">
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Deal Count</span>
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="mt-1 text-xl font-bold">{formatNumber(summary.dealCount)}</div>
+          <div className="text-[11px] text-muted-foreground">Funded deals</div>
+        </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardDescription>Avg Factor Rate</CardDescription>
-          <Percent className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardTitle className="px-6 text-2xl font-bold">
-          {formatFactorRate(summary.avgFactorRate)}
-        </CardTitle>
-        <CardFooter>
-          <p className="text-xs text-muted-foreground">Across all deals</p>
-        </CardFooter>
+      <Card className="p-4">
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">Avg Factor Rate</span>
+            <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="mt-1 text-xl font-bold">{formatFactorRate(summary.avgFactorRate)}</div>
+          <div className="text-[11px] text-muted-foreground">Across all deals</div>
+        </CardContent>
       </Card>
     </div>
   )

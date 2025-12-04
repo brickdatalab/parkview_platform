@@ -7,10 +7,9 @@ import {
   BarChart3,
   DollarSign,
   MessageSquare,
-  Settings,
-  HelpCircle,
   LogOut,
-  Bird,
+  PlusCircle,
+  Building2,
 } from "lucide-react"
 
 import {
@@ -29,20 +28,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 const navMain = [
   { title: "Funded Deals", href: "/dashboard", icon: BarChart3 },
+  { title: "Submit New Funded", href: "/dashboard/submit", icon: PlusCircle },
   { title: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
   { title: "Chat", href: "/dashboard/chat", icon: MessageSquare },
-]
-
-const navSecondary = [
-  { title: "Settings", href: "#", icon: Settings },
-  { title: "Help", href: "#", icon: HelpCircle },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -56,11 +50,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Bird className="size-4" />
+                  <Building2 className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Database</span>
-                  <span className="truncate text-xs text-muted-foreground">Birdseye</span>
+                  <span className="truncate font-semibold">Parkview</span>
+                  <span className="truncate text-xs text-muted-foreground">Platform</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -91,22 +85,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-auto">
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navSecondary.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
@@ -133,11 +111,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out

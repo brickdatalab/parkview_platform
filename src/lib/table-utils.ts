@@ -252,7 +252,7 @@ export function sortDeals(deals: FundedDeal[], sortConfigs: SortConfig[]): Funde
       // Compare
       let comparison = 0
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        comparison = aValue.localeCompare(bValue)
+        comparison = aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
       } else {
         comparison = (aValue as number) - (bValue as number)
       }
