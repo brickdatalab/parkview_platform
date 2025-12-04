@@ -32,11 +32,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-const navMain = [
-  { title: "Funded Deals", href: "/dashboard", icon: BarChart3 },
+const navActions = [
   { title: "Submit New Funded", href: "/dashboard/submit", icon: PlusCircle },
-  { title: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
   { title: "Chat", href: "/dashboard/chat", icon: MessageSquare },
+]
+
+const navKnowledge = [
+  { title: "Funded Deals", href: "/dashboard", icon: BarChart3 },
+  { title: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -64,10 +67,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Actions</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navMain.map((item) => (
+              {navActions.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -85,6 +88,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Knowledge</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navKnowledge.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>

@@ -252,7 +252,8 @@ export function sortDeals(deals: FundedDeal[], sortConfigs: SortConfig[]): Funde
       // Compare
       let comparison = 0
       if (typeof aValue === 'string' && typeof bValue === 'string') {
-        comparison = aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
+        // Trim whitespace before comparing to handle dirty data
+        comparison = aValue.trim().localeCompare(bValue.trim(), undefined, { sensitivity: 'base' })
       } else {
         comparison = (aValue as number) - (bValue as number)
       }
@@ -569,31 +570,25 @@ export function resetToDefault(): TableState {
 }
 
 /**
- * Toggle sort on a column (cycles: none -> desc -> asc -> none)
+ * Toggle sort on a column (cycles: none -> asc -> desc -> none)
+ * Single column sort only - clicking a new column clears previous sort
  */
 export function toggleColumnSort(sortConfigs: SortConfig[], columnId: ColumnId): SortConfig[] {
-  const existingIndex = sortConfigs.findIndex(c => c.columnId === columnId)
+  const existing = sortConfigs.find(c => c.columnId === columnId)
 
-  if (existingIndex === -1) {
-    // Add new sort (desc first)
-    const maxPriority = Math.max(0, ...sortConfigs.map(c => c.priority))
-    return [...sortConfigs, { columnId, direction: 'desc', priority: maxPriority + 1 }]
-  }
-
-  const existing = sortConfigs[existingIndex]
-
-  if (existing.direction === 'desc') {
-    // Switch to asc
-    const updated = [...sortConfigs]
-    updated[existingIndex] = { ...existing, direction: 'asc' }
-    return updated
+  if (!existing) {
+    // New column clicked - replace any existing sort with this one (asc first)
+    return [{ columnId, direction: 'asc', priority: 1 }]
   }
 
   if (existing.direction === 'asc') {
-    // Remove sort
-    const updated = sortConfigs.filter((_, i) => i !== existingIndex)
-    // Re-assign priorities
-    return updated.map((c, i) => ({ ...c, priority: i + 1 }))
+    // Switch to desc (Z to A)
+    return [{ columnId, direction: 'desc', priority: 1 }]
+  }
+
+  if (existing.direction === 'desc') {
+    // Remove sort entirely
+    return []
   }
 
   return sortConfigs
