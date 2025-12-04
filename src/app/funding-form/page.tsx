@@ -4,6 +4,9 @@ import { FundingForm } from '@/components/funding/funding-form'
 import { loadFundingFields } from '@/lib/funding-form-loader'
 import { fundingSections } from '@/lib/funding-form-sections'
 
+// Skip static generation - this page requires runtime file access
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Funding Form',
 }
