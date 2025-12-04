@@ -5,28 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MessageSquare, Send, Bot, Sparkles } from 'lucide-react'
+import { SiteHeader } from '@/components/layout/site-header'
 
 export default function ChatPage() {
   const [message, setMessage] = useState('')
 
   return (
     <div className="flex h-full flex-col">
-      {/* Page Header */}
-      <div className="border-b bg-white px-6 py-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">
-              Chat with Master Funder
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Ask questions about your funded deals and commissions
-            </p>
-          </div>
-        </div>
-      </div>
+      <SiteHeader
+        title="Chat with Master Funder"
+        description="Ask questions about your funded deals and commissions"
+        icon={Sparkles}
+      />
 
       {/* Chat Area */}
       <div className="flex-1 overflow-auto p-6">
