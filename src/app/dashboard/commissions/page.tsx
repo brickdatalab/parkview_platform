@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
 import { fetchFundedDeals } from '@/lib/queries'
 import { CommissionsTable } from '@/components/commissions/commissions-table'
 import { ActionBar } from '@/components/commissions/action-bar'
+import { SiteHeader } from '@/components/layout/site-header'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { FundedDeal, DealWithPayment, PaymentStatus } from '@/types/database'
 
 export default function CommissionsPage() {
@@ -11,7 +14,6 @@ export default function CommissionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // Fetch all deals from Supabase with pagination
   useEffect(() => {
@@ -103,8 +105,7 @@ export default function CommissionsPage() {
     )
     const count = selectedIds.size
     setSelectedIds(new Set())
-    setToast({ message: `${count} deal${count > 1 ? 's' : ''} marked as paid`, type: 'success' })
-    setTimeout(() => setToast(null), 3000)
+    toast.success(`${count} deal${count > 1 ? 's' : ''} marked as paid`)
   }, [selectedIds])
 
   const handleMarkClawback = useCallback(() => {
@@ -117,8 +118,7 @@ export default function CommissionsPage() {
     )
     const count = selectedIds.size
     setSelectedIds(new Set())
-    setToast({ message: `${count} deal${count > 1 ? 's' : ''} marked as clawback`, type: 'success' })
-    setTimeout(() => setToast(null), 3000)
+    toast.success(`${count} deal${count > 1 ? 's' : ''} marked as clawback`)
   }, [selectedIds])
 
   // Calculate summary stats
@@ -143,10 +143,13 @@ export default function CommissionsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex items-center gap-3">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-600 dark:border-t-zinc-50"></div>
-          <span className="text-zinc-600 dark:text-zinc-400">Loading all deals...</span>
+      <div className="flex h-full flex-col">
+        <SiteHeader title="Commissions" />
+        <div className="flex h-full items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-600 dark:border-t-zinc-50"></div>
+            <span className="text-zinc-600 dark:text-zinc-400">Loading all deals...</span>
+          </div>
         </div>
       </div>
     )
@@ -154,10 +157,13 @@ export default function CommissionsPage() {
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-900/20 dark:text-red-200">
-          <p className="font-medium">Error loading deals</p>
-          <p className="mt-1 text-sm">{error}</p>
+      <div className="flex h-full flex-col">
+        <SiteHeader title="Commissions" />
+        <div className="flex h-full items-center justify-center">
+          <div className="rounded-lg bg-red-50 p-4 text-red-800 dark:bg-red-900/20 dark:text-red-200">
+            <p className="font-medium">Error loading deals</p>
+            <p className="mt-1 text-sm">{error}</p>
+          </div>
         </div>
       </div>
     )
@@ -165,15 +171,7 @@ export default function CommissionsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Page Header */}
-      <div className="border-b bg-white px-6 py-6 dark:bg-zinc-950">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Commission Tracking
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Track and manage commission payments for funded deals
-        </p>
-      </div>
+      <SiteHeader title="Commissions" />
 
       {/* Action Bar */}
       <ActionBar
@@ -245,19 +243,6 @@ export default function CommissionsPage() {
           </div>
         </div>
       </div>
-
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 rounded-lg px-4 py-3 text-sm font-medium shadow-lg transition-all ${
-            toast.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
     </div>
   )
 }
