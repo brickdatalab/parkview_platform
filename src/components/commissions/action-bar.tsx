@@ -23,7 +23,7 @@ export function ActionBar({
   const hasSelection = selectedCount > 0
 
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4 dark:bg-zinc-950">
+    <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-2 dark:bg-zinc-950">
       <div className="flex items-center gap-4">
         <label className="flex cursor-pointer items-center gap-2">
           <input

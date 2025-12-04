@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Parkview Advance",
-  description: "Parkview Advance Dashboard",
+  title: "Database Birdseye",
+  description: "Database Birdseye Dashboard",
 };
 
 export default function RootLayout({

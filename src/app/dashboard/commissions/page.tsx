@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { getSupabase } from '@/lib/supabase'
-import { DealsTable } from '@/components/commissions/deals-table'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { fetchFundedDeals } from '@/lib/queries'
+import { CommissionsTable } from '@/components/commissions/commissions-table'
 import { ActionBar } from '@/components/commissions/action-bar'
 import type { FundedDeal, DealWithPayment, PaymentStatus } from '@/types/database'
 
@@ -13,22 +13,18 @@ export default function CommissionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  // Fetch deals from Supabase
+  // Fetch all deals from Supabase with pagination
   useEffect(() => {
-    async function fetchDeals() {
+    async function loadDeals() {
       try {
         setLoading(true)
-        const { data, error } = await getSupabase()
-          .from('funded_deals')
-          .select('*')
-          .order('funded_date', { ascending: false })
+        setError(null)
 
-        if (error) {
-          throw error
-        }
+        // Use the paginated fetch function to get all deals
+        const allDeals = await fetchFundedDeals()
 
         // Transform to DealWithPayment, defaulting to 'Pending' status
-        const dealsWithPayment: DealWithPayment[] = (data || []).map((deal: FundedDeal) => ({
+        const dealsWithPayment: DealWithPayment[] = allDeals.map((deal: FundedDeal) => ({
           id: deal.id,
           internal_form_id: deal.internal_form_id,
           rep_id: deal.rep_id,
@@ -71,7 +67,7 @@ export default function CommissionsPage() {
       }
     }
 
-    fetchDeals()
+    loadDeals()
   }, [])
 
   // Selection handlers
@@ -125,12 +121,32 @@ export default function CommissionsPage() {
     setTimeout(() => setToast(null), 3000)
   }, [selectedIds])
 
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const pending = deals.filter((d) => d.payment_status === 'Pending')
+    const paid = deals.filter((d) => d.payment_status === 'Paid')
+    const clawback = deals.filter((d) => d.payment_status === 'Clawback')
+    const totalCommission = deals.reduce((sum, d) => sum + (d.rep_commission || 0), 0)
+    const pendingCommission = pending.reduce((sum, d) => sum + (d.rep_commission || 0), 0)
+    const paidCommission = paid.reduce((sum, d) => sum + (d.rep_commission || 0), 0)
+
+    return {
+      total: deals.length,
+      pending: pending.length,
+      paid: paid.length,
+      clawback: clawback.length,
+      totalCommission,
+      pendingCommission,
+      paidCommission,
+    }
+  }, [deals])
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-600 dark:border-t-zinc-50"></div>
-          <span className="text-zinc-600 dark:text-zinc-400">Loading deals...</span>
+          <span className="text-zinc-600 dark:text-zinc-400">Loading all deals...</span>
         </div>
       </div>
     )
@@ -169,12 +185,15 @@ export default function CommissionsPage() {
         onMarkClawback={handleMarkClawback}
       />
 
-      {/* Deals Table */}
-      <div className="flex-1 overflow-auto px-6 py-4">
-        <DealsTable
-          deals={deals}
+      {/* Commissions Table with Advanced Features */}
+      <div className="flex-1 overflow-auto px-6 py-2">
+        <CommissionsTable
+          data={deals}
+          totalCount={deals.length}
+          isLoading={loading}
           selectedIds={selectedIds}
           onSelectId={handleSelectId}
+          onSelectAll={handleSelectAll}
         />
       </div>
 
@@ -183,36 +202,45 @@ export default function CommissionsPage() {
         <div className="flex items-center justify-between text-sm">
           <div className="flex gap-6">
             <span className="text-zinc-500 dark:text-zinc-400">
-              Total deals: <span className="font-medium text-zinc-900 dark:text-zinc-50">{deals.length}</span>
+              Total deals: <span className="font-medium text-zinc-900 dark:text-zinc-50">{summaryStats.total}</span>
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">
               Pending:{' '}
               <span className="font-medium text-amber-600">
-                {deals.filter((d) => d.payment_status === 'Pending').length}
+                {summaryStats.pending}
               </span>
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">
               Paid:{' '}
               <span className="font-medium text-green-600">
-                {deals.filter((d) => d.payment_status === 'Paid').length}
+                {summaryStats.paid}
               </span>
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">
               Clawback:{' '}
               <span className="font-medium text-red-600">
-                {deals.filter((d) => d.payment_status === 'Clawback').length}
+                {summaryStats.clawback}
               </span>
             </span>
           </div>
-          <div className="text-zinc-500 dark:text-zinc-400">
-            Total commissions:{' '}
-            <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
-              {new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: 'USD',
-              }).format(
-                deals.reduce((sum, d) => sum + (d.rep_commission || 0), 0)
-              )}
+          <div className="flex gap-6">
+            <span className="text-zinc-500 dark:text-zinc-400">
+              Pending commissions:{' '}
+              <span className="font-mono font-medium text-amber-600">
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                }).format(summaryStats.pendingCommission)}
+              </span>
+            </span>
+            <span className="text-zinc-500 dark:text-zinc-400">
+              Total commissions:{' '}
+              <span className="font-mono font-medium text-zinc-900 dark:text-zinc-50">
+                {new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: 'USD',
+                }).format(summaryStats.totalCommission)}
+              </span>
             </span>
           </div>
         </div>
