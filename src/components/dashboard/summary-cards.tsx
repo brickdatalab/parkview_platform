@@ -1,57 +1,24 @@
-'use client'
-
-import { Card, CardContent } from '@/components/ui/card'
-import { DollarSign, TrendingUp, FileText, Percent } from 'lucide-react'
-import type { DashboardSummary } from '@/lib/queries'
-import { formatLargeNumber, formatCurrency, formatNumber, formatFactorRate } from '@/lib/queries'
+import { DollarSign, TrendingUp, FileText, Percent } from "lucide-react"
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { DashboardSummary } from "@/lib/queries"
+import { formatLargeNumber, formatCurrency, formatNumber, formatFactorRate } from "@/lib/queries"
 
 interface SummaryCardsProps {
   summary: DashboardSummary
   isLoading?: boolean
 }
 
-interface StatCardProps {
-  title: string
-  value: string
-  subtitle?: string
-  icon: React.ComponentType<{ className?: string }>
-  iconColor: string
-  iconBg: string
-}
-
-function StatCard({ title, value, subtitle, icon: Icon, iconColor, iconBg }: StatCardProps) {
+function CardSkeleton() {
   return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}</p>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">{subtitle}</p>
-            )}
-          </div>
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${iconBg}`}>
-            <Icon className={`h-5 w-5 ${iconColor}`} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function SkeletonCard() {
-  return (
-    <Card className="border-0 shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-            <div className="h-8 w-32 animate-pulse rounded bg-muted" />
-          </div>
-          <div className="h-10 w-10 animate-pulse rounded-lg bg-muted" />
-        </div>
-      </CardContent>
+    <Card>
+      <CardHeader className="pb-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-32" />
+      </CardHeader>
+      <CardFooter>
+        <Skeleton className="h-4 w-20" />
+      </CardFooter>
     </Card>
   )
 }
@@ -60,48 +27,69 @@ export function SummaryCards({ summary, isLoading }: SummaryCardsProps) {
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
-        <SkeletonCard />
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
+        <CardSkeleton />
       </div>
     )
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        title="Total Funded"
-        value={formatLargeNumber(summary.totalFunded)}
-        subtitle={formatCurrency(summary.totalFunded)}
-        icon={DollarSign}
-        iconColor="text-emerald-600"
-        iconBg="bg-emerald-50"
-      />
-      <StatCard
-        title="Total Commission"
-        value={formatLargeNumber(summary.totalCommission)}
-        subtitle="Commission + PSF"
-        icon={TrendingUp}
-        iconColor="text-blue-600"
-        iconBg="bg-blue-50"
-      />
-      <StatCard
-        title="Deal Count"
-        value={formatNumber(summary.dealCount)}
-        subtitle="Funded deals"
-        icon={FileText}
-        iconColor="text-purple-600"
-        iconBg="bg-purple-50"
-      />
-      <StatCard
-        title="Avg Factor Rate"
-        value={formatFactorRate(summary.avgFactorRate)}
-        subtitle="Across all deals"
-        icon={Percent}
-        iconColor="text-amber-600"
-        iconBg="bg-amber-50"
-      />
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardDescription>Total Funded</CardDescription>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardTitle className="px-6 text-2xl font-bold">
+          {formatLargeNumber(summary.totalFunded)}
+        </CardTitle>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">
+            {formatCurrency(summary.totalFunded)}
+          </p>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardDescription>Total Commission</CardDescription>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardTitle className="px-6 text-2xl font-bold">
+          {formatLargeNumber(summary.totalCommission)}
+        </CardTitle>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">Commission + PSF</p>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardDescription>Deal Count</CardDescription>
+          <FileText className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardTitle className="px-6 text-2xl font-bold">
+          {formatNumber(summary.dealCount)}
+        </CardTitle>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">Funded deals</p>
+        </CardFooter>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardDescription>Avg Factor Rate</CardDescription>
+          <Percent className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardTitle className="px-6 text-2xl font-bold">
+          {formatFactorRate(summary.avgFactorRate)}
+        </CardTitle>
+        <CardFooter>
+          <p className="text-xs text-muted-foreground">Across all deals</p>
+        </CardFooter>
+      </Card>
     </div>
   )
 }
