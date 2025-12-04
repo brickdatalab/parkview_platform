@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MessageSquare, Send, Bot, Sparkles } from 'lucide-react'
+import { MessageSquare, Send, Bot } from 'lucide-react'
 import { SiteHeader } from '@/components/layout/site-header'
 
 export default function ChatPage() {
@@ -14,8 +14,6 @@ export default function ChatPage() {
     <div className="flex h-full flex-col">
       <SiteHeader
         title="Chat with Master Funder"
-        description="Ask questions about your funded deals and commissions"
-        icon={Sparkles}
       />
 
       {/* Chat Area */}
