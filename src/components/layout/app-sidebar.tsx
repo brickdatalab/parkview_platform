@@ -9,7 +9,6 @@ import {
   MessageSquare,
   LogOut,
   PlusCircle,
-  Building2,
 } from "lucide-react"
 
 import {
@@ -80,13 +79,12 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Building2 className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Parkview</span>
-                  <span className="truncate text-xs text-muted-foreground">Platform</span>
-                </div>
+                <img
+                  src="/branding/parkview_logo-really-small.png"
+                  alt="Parkview"
+                  className="size-8 rounded-lg"
+                />
+                <span className="truncate font-semibold">Parkview Platform</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

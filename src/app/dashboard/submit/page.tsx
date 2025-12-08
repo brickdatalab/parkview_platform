@@ -6,13 +6,13 @@ export default function SubmitNewFundedPage() {
   return (
     <>
       <SiteHeader title="Submit New Funded" />
-      <div className="flex flex-1 flex-col items-center justify-center p-8">
-        <div className="text-center">
-          <h2 className="text-lg font-medium text-muted-foreground">Coming Soon</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This page will allow submitting new funded deals.
-          </p>
-        </div>
+      <div className="flex flex-1 flex-col items-center bg-white overflow-hidden">
+        <iframe
+          src="https://notion-form-magic.lovable.app/embed"
+          className="w-full max-w-5xl h-full"
+          style={{ border: 'none' }}
+          title="Submit New Funded Form"
+        />
       </div>
     </>
   )
