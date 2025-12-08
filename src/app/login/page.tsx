@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+/* eslint-disable @next/next/no-img-element */
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -19,33 +21,35 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    const supabase = createClient()
 
-    // Mock auth: Accept lloyd@christmas.com with any password
-    if (email.toLowerCase() === 'lloyd@christmas.com') {
-      localStorage.setItem('parkview_auth', JSON.stringify({
-        email,
-        authenticated: true,
-        timestamp: Date.now()
-      }))
-      router.push('/dashboard')
-    } else {
-      setError('Invalid credentials')
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (authError) {
+      setError('Invalid email or password')
       setIsLoading(false)
+      return
     }
+
+    router.push('/dashboard')
+    router.refresh()
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8fafc] px-4">
-      <Card className="w-full max-w-[400px] border-0 shadow-lg bg-white">
-        <CardHeader className="pb-2 pt-8">
-          <div className="text-center">
-            <h1
-              className="text-xl font-semibold tracking-wider text-[#1a3a52]"
-              style={{ letterSpacing: '0.2em' }}
-            >
-              PARKVIEW ADVANCE
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 px-4">
+      <Card className="w-full max-w-[420px] border-0 shadow-xl bg-white">
+        <CardHeader className="pb-0 pt-8">
+          <div className="flex flex-col items-center gap-4">
+            <img
+              src="/branding/parkview_logo-medium.png"
+              alt="Parkview Advance"
+              className="w-20 h-20"
+            />
+            <h1 className="text-[1.65rem] font-semibold text-primary">
+              Parkview Advance Platform
             </h1>
           </div>
         </CardHeader>
@@ -58,11 +62,11 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="you@parkviewadvance.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11 border-gray-200 focus-visible:border-[#1a3a52] focus-visible:ring-[#1a3a52]/20"
+                className="h-11 border-slate-200 focus-visible:border-[#1a3a52] focus-visible:ring-[#1a3a52]/20"
               />
             </div>
             <div className="space-y-2">
@@ -76,16 +80,18 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="h-11 border-gray-200 focus-visible:border-[#1a3a52] focus-visible:ring-[#1a3a52]/20"
+                className="h-11 border-slate-200 focus-visible:border-[#1a3a52] focus-visible:ring-[#1a3a52]/20"
               />
             </div>
             {error && (
-              <p className="text-sm text-red-600 text-center">{error}</p>
+              <p className="text-sm text-red-600 text-center bg-red-50 py-2 px-3 rounded-md">
+                {error}
+              </p>
             )}
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 bg-[#1a3a52] hover:bg-[#152e42] text-white font-medium transition-colors duration-200"
+              className="w-full h-11 bg-[#1a3a52] text-white font-medium transition-all duration-200 border-2 border-[#1a3a52] hover:bg-white hover:text-[#1a3a52]"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>

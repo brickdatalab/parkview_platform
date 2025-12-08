@@ -1,4 +1,4 @@
-import { getSupabase } from './supabase'
+import { createClient } from '@/lib/supabase/client'
 import type { FundedDeal, RepSummary } from '@/types/database'
 
 export interface DashboardFilters {
@@ -103,7 +103,7 @@ export async function fetchFundedDeals(): Promise<FundedDeal[]> {
   let hasMore = true
 
   while (hasMore) {
-    const { data, error } = await getSupabase()
+    const { data, error } = await createClient()
       .from('funded_deals')
       .select('*')
       .order('funded_date', { ascending: false })
@@ -130,7 +130,7 @@ export async function fetchFundedDeals(): Promise<FundedDeal[]> {
  * Fetch unique reps from funded deals
  */
 export async function fetchUniqueReps(): Promise<string[]> {
-  const { data, error } = await getSupabase()
+  const { data, error } = await createClient()
     .from('funded_deals')
     .select('rep')
     .not('rep', 'is', null)
@@ -148,7 +148,7 @@ export async function fetchUniqueReps(): Promise<string[]> {
  * Fetch unique lenders from funded deals
  */
 export async function fetchUniqueLenders(): Promise<string[]> {
-  const { data, error } = await getSupabase()
+  const { data, error } = await createClient()
     .from('funded_deals')
     .select('lender')
     .not('lender', 'is', null)
@@ -308,7 +308,7 @@ export function formatNumber(value: number): string {
  * Fetch unique deal types from funded deals
  */
 export async function fetchUniqueDealTypes(): Promise<string[]> {
-  const { data, error } = await getSupabase()
+  const { data, error } = await createClient()
     .from('funded_deals')
     .select('deal_type')
     .not('deal_type', 'is', null)
@@ -326,7 +326,7 @@ export async function fetchUniqueDealTypes(): Promise<string[]> {
  * Fetch unique years from funded deals
  */
 export async function fetchUniqueYears(): Promise<number[]> {
-  const { data, error } = await getSupabase()
+  const { data, error } = await createClient()
     .from('funded_deals')
     .select('funded_date')
     .not('funded_date', 'is', null)

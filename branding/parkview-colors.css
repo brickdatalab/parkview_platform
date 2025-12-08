@@ -1,0 +1,132 @@
+@layer base {
+  :root {
+    /* Base */
+    --background: 0 0% 100%;
+    --foreground: 217 48% 20%;
+
+    /* Card / Popover */
+    --card: 0 0% 100%;
+    --card-foreground: 217 48% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 48% 20%;
+
+    /* Primary - Navy */
+    --primary: 217 48% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Steel Blue */
+    --secondary: 218 29% 34%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted */
+    --muted: 220 20% 96%;
+    --muted-foreground: 212 14% 42%;
+
+    /* Accent - Gold */
+    --accent: 43 50% 59%;
+    --accent-foreground: 217 48% 20%;
+
+    /* Accessible Gold - for text links on light bg */
+    --accent-text: 43 56% 39%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border / Input / Ring */
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 43 50% 59%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* ===== CUSTOM BRAND TOKENS ===== */
+    
+    /* Brand Colors - Direct Access */
+    --brand-navy: 217 48% 20%;
+    --brand-gold: 43 50% 59%;
+    --brand-gold-accessible: 43 56% 39%;
+    --brand-gold-bright: 43 60% 59%;
+    --brand-blue: 218 29% 34%;
+    --brand-steel: 212 14% 42%;
+
+    /* Section Backgrounds */
+    --section-light: 0 0% 100%;
+    --section-off-white: 220 20% 98%;
+    --section-dark: 218 29% 34%;
+
+    /* Chart Colors (for data visualization) */
+    --chart-1: 217 48% 20%;
+    --chart-2: 43 50% 59%;
+    --chart-3: 218 29% 34%;
+    --chart-4: 212 14% 42%;
+    --chart-5: 43 56% 39%;
+  }
+
+  /* Dark sections or dark mode */
+  .dark,
+  [data-theme="dark"],
+  .section-dark {
+    --background: 218 29% 34%;
+    --foreground: 0 0% 100%;
+
+    --card: 218 32% 28%;
+    --card-foreground: 0 0% 100%;
+    --popover: 218 32% 28%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 43 50% 59%;
+    --primary-foreground: 217 48% 20%;
+
+    --secondary: 217 48% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 218 25% 40%;
+    --muted-foreground: 213 27% 82%;
+
+    --accent: 43 60% 59%;
+    --accent-foreground: 217 48% 20%;
+
+    --accent-text: 43 60% 70%;
+
+    --border: 218 25% 45%;
+    --input: 218 25% 45%;
+    --ring: 43 50% 59%;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Background utilities for sections */
+.bg-section-light {
+  background-color: hsl(var(--section-light));
+  color: hsl(var(--brand-navy));
+}
+
+.bg-section-off-white {
+  background-color: hsl(var(--section-off-white));
+  color: hsl(var(--brand-navy));
+}
+
+.bg-section-dark {
+  background-color: hsl(var(--section-dark));
+  color: hsl(0 0% 100%);
+}
+
+/* Gold text that's accessible on light backgrounds */
+.text-gold-accessible {
+  color: hsl(var(--brand-gold-accessible));
+}
+
+/* Gold text for dark backgrounds */
+.text-gold-bright {
+  color: hsl(var(--brand-gold-bright));
+}
+
+/* Decorative gold (borders, icons, non-text) */
+.text-gold-decorative,
+.border-gold-decorative {
+  color: hsl(var(--brand-gold));
+  border-color: hsl(var(--brand-gold));
+}

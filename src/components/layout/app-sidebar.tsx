@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   BarChart3,
   DollarSign,
@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { createClient } from "@/lib/supabase/client"
 
 const navActions = [
   { title: "Submit New Funded", href: "/dashboard/submit", icon: PlusCircle },
@@ -42,8 +43,35 @@ const navKnowledge = [
   { title: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface UserInfo {
+  email: string
+  firstName: string
+  lastName: string
+}
+
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  user: UserInfo | null
+}
+
+export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  // Get display name and initial
+  const displayName = user?.firstName && user?.lastName
+    ? `${user.firstName} ${user.lastName}`
+    : user?.email ?? 'User'
+
+  const initial = user?.firstName
+    ? user.firstName.charAt(0).toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() ?? 'U'
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -120,11 +148,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg">AF</AvatarFallback>
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback className="bg-white text-primary font-semibold">
+                      {initial}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Alex Figueroa</span>
+                    <span className="truncate font-semibold">{displayName}</span>
                     <span className="truncate text-xs text-muted-foreground">Admin</span>
                   </div>
                 </SidebarMenuButton>
@@ -135,7 +165,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Log out
                 </DropdownMenuItem>
