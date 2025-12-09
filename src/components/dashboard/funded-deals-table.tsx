@@ -56,6 +56,7 @@ import {
 } from '@/lib/table-utils'
 import { TableToolbar } from './table-toolbar'
 import { FilterDropdown, DateRangeFilter } from './filter-dropdown'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // Column width management
 interface ColumnWidths {
@@ -521,11 +522,21 @@ export function FundedDealsTable({
               ) : processedData.flatData.length === 0 ? (
                 // Empty state
                 <TableRow>
-                  <TableCell
-                    colSpan={visibleColumnDefs.length}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    No deals found for the selected filters.
+                  <TableCell colSpan={visibleColumnDefs.length} className="p-0">
+                    <EmptyState
+                      variant="filtered"
+                      title="No deals found"
+                      description="Try adjusting your filters or date range"
+                      actionLabel="Clear Filters"
+                      onAction={() => {
+                        setTableState(prev => ({
+                          ...prev,
+                          filters: [],
+                          dateRange: { startDate: null, endDate: null },
+                          currentPage: 1,
+                        }))
+                      }}
+                    />
                   </TableCell>
                 </TableRow>
               ) : tableState.groupBy === 'none' ? (
