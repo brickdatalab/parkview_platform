@@ -100,6 +100,8 @@ interface FundedDealsTableProps {
   totalCount: number
   isLoading?: boolean
   onFilteredDataChange?: (filteredData: FundedDeal[]) => void
+  initialState?: Partial<TableState>
+  onStateChange?: (state: TableState) => void
 }
 
 interface SortableHeaderProps {
@@ -272,11 +274,14 @@ export function FundedDealsTable({
   data,
   totalCount,
   isLoading,
-  onFilteredDataChange
+  onFilteredDataChange,
+  initialState,
+  onStateChange
 }: FundedDealsTableProps) {
-  // Table state
+  // Table state - merge default with initial state from URL
   const [tableState, setTableState] = useState<TableState>(() => ({
     ...DEFAULT_TABLE_STATE,
+    ...initialState,
   }))
 
   // Expanded groups for grouped view
@@ -329,6 +334,11 @@ export function FundedDealsTable({
   useEffect(() => {
     onFilteredDataChange?.(processedData.flatData)
   }, [processedData.flatData, onFilteredDataChange])
+
+  // Notify parent of state changes for URL persistence
+  useEffect(() => {
+    onStateChange?.(tableState)
+  }, [tableState, onStateChange])
 
   // Calculate pagination based on flat data (ungrouped)
   const totalPages = getTotalPages(processedData.flatData.length, tableState.pageSize)

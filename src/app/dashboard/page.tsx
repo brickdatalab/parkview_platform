@@ -1,16 +1,29 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { FundedDealsTable } from '@/components/dashboard/funded-deals-table'
 import { useFundedDeals } from '@/hooks/use-funded-deals'
+import { useUrlFilters } from '@/lib/url-filters'
 import type { FundedDeal } from '@/types/database'
 import type { DashboardSummary } from '@/lib/queries'
+import type { TableState } from '@/types/table'
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  )
+}
+
+function DashboardContent() {
   const { data: allDeals, error: fetchError, isLoading } = useFundedDeals()
   const [filteredDeals, setFilteredDeals] = useState<FundedDeal[]>([])
+
+  // URL filter persistence
+  const { initialState, updateUrl } = useUrlFilters()
 
   // Update filtered deals when allDeals changes
   useEffect(() => {
@@ -23,6 +36,11 @@ export default function DashboardPage() {
   const handleFilteredDataChange = useCallback((data: FundedDeal[]) => {
     setFilteredDeals(data)
   }, [])
+
+  // Handle state changes from table and sync to URL
+  const handleStateChange = useCallback((state: TableState) => {
+    updateUrl(state)
+  }, [updateUrl])
 
   const summary = useMemo<DashboardSummary>(() => {
     if (filteredDeals.length === 0) {
@@ -65,7 +83,20 @@ export default function DashboardPage() {
           totalCount={allDeals.length}
           isLoading={isLoading}
           onFilteredDataChange={handleFilteredDataChange}
+          initialState={initialState}
+          onStateChange={handleStateChange}
         />
+      </div>
+    </>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <>
+      <SiteHeader title="Funded Deals" />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
       </div>
     </>
   )
