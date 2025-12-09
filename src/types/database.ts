@@ -103,3 +103,48 @@ export interface QuarterData {
   year: number
   data: RepSummary[]
 }
+
+export interface CommissionPayoutRep {
+  id: string
+  funded_deal_id: string
+  rep_id: string
+  commission_amount: number | null
+  split_percentage: number | null
+  is_primary_rep: boolean | null
+  paid: boolean | null
+  paid_date: string | null
+  requested: boolean | null
+  payment_status: string | null
+  notes: string | null
+  business_main_id: string | null
+  created_at: string | null
+  updated_at: string | null
+  // Joined fields
+  deal_name?: string
+  rep_name?: string
+  funded_date?: string
+  funded_amount?: number
+  lender?: string
+  lender_inhouse?: boolean
+  funder_paid_parkview?: boolean
+}
+
+export interface CommissionPayoutISO {
+  id: string
+  funded_deal_id: string
+  rep_id: string
+  commission_amount: number | null
+  paid: boolean | null
+  paid_date: string | null
+  payment_status: string | null
+  notes: string | null
+  business_main_id: string | null
+  created_at: string | null
+  updated_at: string | null
+  // Joined fields
+  deal_name?: string
+  iso_name?: string
+  funded_date?: string
+  funded_amount?: number
+  lender?: string
+}

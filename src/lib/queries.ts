@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { FundedDeal, RepSummary } from '@/types/database'
+import type { FundedDeal, RepSummary, CommissionPayoutRep, CommissionPayoutISO } from '@/types/database'
 
 export interface DashboardFilters {
   quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'all'
@@ -535,4 +535,114 @@ export function getAllMonths(): { value: number; label: string }[] {
     { value: 11, label: 'November' },
     { value: 12, label: 'December' },
   ]
+}
+
+/**
+ * Fetch rep commissions from commission_payout_reps with joined deal/rep data
+ */
+export async function fetchRepCommissions(): Promise<CommissionPayoutRep[]> {
+  const allCommissions: CommissionPayoutRep[] = []
+  const pageSize = 1000
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data, error } = await createClient()
+      .from('commission_payout_reps')
+      .select(`
+        *,
+        funded_deals!inner (
+          deal_name,
+          funded_date,
+          funded_amount,
+          lender,
+          funder_paid_parkview,
+          lenders (
+            inhouse_funded
+          )
+        ),
+        reps!inner (
+          name
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1)
+
+    if (error) {
+      console.error('Error fetching rep commissions:', error)
+      throw error
+    }
+
+    if (data && data.length > 0) {
+      const mapped = data.map((row: any) => ({
+        ...row,
+        deal_name: row.funded_deals?.deal_name,
+        rep_name: row.reps?.name,
+        funded_date: row.funded_deals?.funded_date,
+        funded_amount: row.funded_deals?.funded_amount,
+        lender: row.funded_deals?.lender,
+        lender_inhouse: row.funded_deals?.lenders?.inhouse_funded,
+        funder_paid_parkview: row.funded_deals?.funder_paid_parkview,
+      }))
+      allCommissions.push(...mapped)
+      offset += pageSize
+      hasMore = data.length === pageSize
+    } else {
+      hasMore = false
+    }
+  }
+
+  return allCommissions
+}
+
+/**
+ * Fetch ISO commissions from commission_payout_iso with joined deal/rep data
+ */
+export async function fetchISOCommissions(): Promise<CommissionPayoutISO[]> {
+  const allCommissions: CommissionPayoutISO[] = []
+  const pageSize = 1000
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data, error } = await createClient()
+      .from('commission_payout_iso')
+      .select(`
+        *,
+        funded_deals!inner (
+          deal_name,
+          funded_date,
+          funded_amount,
+          lender
+        ),
+        reps!inner (
+          name
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1)
+
+    if (error) {
+      console.error('Error fetching ISO commissions:', error)
+      throw error
+    }
+
+    if (data && data.length > 0) {
+      const mapped = data.map((row: any) => ({
+        ...row,
+        deal_name: row.funded_deals?.deal_name,
+        iso_name: row.reps?.name,
+        funded_date: row.funded_deals?.funded_date,
+        funded_amount: row.funded_deals?.funded_amount,
+        lender: row.funded_deals?.lender,
+      }))
+      allCommissions.push(...mapped)
+      offset += pageSize
+      hasMore = data.length === pageSize
+    } else {
+      hasMore = false
+    }
+  }
+
+  return allCommissions
 }

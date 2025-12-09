@@ -1,4 +1,4 @@
-import type { DealWithPayment, PaymentStatus } from '@/types/database'
+import type { DealWithPayment, PaymentStatus, CommissionPayoutRep, CommissionPayoutISO } from '@/types/database'
 import type {
   CommissionColumnId,
   CommissionSortConfig,
@@ -10,8 +10,27 @@ import type {
   CommissionTableState,
   CommissionSavedView,
   SortDirection,
+  RepCommissionColumnId,
+  RepCommissionSortConfig,
+  RepCommissionFilter,
+  RepCommissionTableState,
+  RepCommissionSavedView,
+  RepCommissionGroupByOption,
+  ISOCommissionColumnId,
+  ISOCommissionSortConfig,
+  ISOCommissionFilter,
+  ISOCommissionTableState,
+  ISOCommissionSavedView,
+  ISOCommissionGroupByOption,
 } from '@/types/table'
-import { COMMISSION_COLUMNS, DEFAULT_COMMISSION_TABLE_STATE } from '@/types/table'
+import {
+  COMMISSION_COLUMNS,
+  DEFAULT_COMMISSION_TABLE_STATE,
+  REP_COMMISSION_COLUMNS,
+  DEFAULT_REP_COMMISSION_TABLE_STATE,
+  ISO_COMMISSION_COLUMNS,
+  DEFAULT_ISO_COMMISSION_TABLE_STATE,
+} from '@/types/table'
 
 // ============ DATE PARSING ============
 
@@ -596,4 +615,741 @@ export function getCommissionSortIndicator(sortConfigs: CommissionSortConfig[], 
     return { priority: null, direction: null }
   }
   return { priority: config.priority, direction: config.direction }
+}
+
+// ============ REP COMMISSION UTILITIES ============
+
+export function filterRepCommissions(
+  data: CommissionPayoutRep[],
+  state: RepCommissionTableState
+): CommissionPayoutRep[] {
+  let filtered = data
+
+  // Apply search
+  if (state.searchQuery.trim()) {
+    const query = state.searchQuery.toLowerCase().trim()
+    filtered = filtered.filter(row => {
+      const dealName = (row.deal_name || '').toLowerCase()
+      const repName = (row.rep_name || '').toLowerCase()
+      const lender = (row.lender || '').toLowerCase()
+      return dealName.includes(query) || repName.includes(query) || lender.includes(query)
+    })
+  }
+
+  // Apply column filters
+  for (const filter of state.filters) {
+    if (filter.selectedValues.length === 0) continue
+
+    filtered = filtered.filter(row => {
+      let value: string
+      switch (filter.columnId) {
+        case 'deal_name':
+          value = row.deal_name || ''
+          break
+        case 'rep_name':
+          value = row.rep_name || ''
+          break
+        case 'lender':
+          value = row.lender || ''
+          break
+        case 'paid_to_rep':
+          value = row.paid ? 'Paid' : 'Pending'
+          break
+        case 'funder_paid':
+          if (row.lender_inhouse) {
+            value = 'In-House'
+          } else {
+            value = row.funder_paid_parkview ? 'Received' : 'Pending'
+          }
+          break
+        default:
+          value = ''
+      }
+      return filter.selectedValues.includes(value)
+    })
+  }
+
+  // Apply date range
+  if (state.dateRange.startDate || state.dateRange.endDate) {
+    filtered = filtered.filter(row => {
+      const rowDate = parseDate(row.funded_date ?? null)
+      if (!rowDate) return false
+
+      if (state.dateRange.startDate) {
+        const start = new Date(state.dateRange.startDate)
+        start.setHours(0, 0, 0, 0)
+        if (rowDate < start) return false
+      }
+
+      if (state.dateRange.endDate) {
+        const end = new Date(state.dateRange.endDate)
+        end.setHours(23, 59, 59, 999)
+        if (rowDate > end) return false
+      }
+
+      return true
+    })
+  }
+
+  return filtered
+}
+
+export function sortRepCommissions(
+  data: CommissionPayoutRep[],
+  sortConfigs: RepCommissionSortConfig[]
+): CommissionPayoutRep[] {
+  if (sortConfigs.length === 0) return data
+
+  const sortedConfigs = [...sortConfigs]
+    .filter(c => c.direction !== null)
+    .sort((a, b) => a.priority - b.priority)
+
+  if (sortedConfigs.length === 0) return data
+
+  return [...data].sort((a, b) => {
+    for (const config of sortedConfigs) {
+      let aValue: string | number | boolean | null
+      let bValue: string | number | boolean | null
+
+      switch (config.columnId) {
+        case 'deal_name':
+          aValue = a.deal_name ?? null
+          bValue = b.deal_name ?? null
+          break
+        case 'rep_name':
+          aValue = a.rep_name ?? null
+          bValue = b.rep_name ?? null
+          break
+        case 'lender':
+          aValue = a.lender ?? null
+          bValue = b.lender ?? null
+          break
+        case 'funded_date':
+          aValue = parseDate(a.funded_date ?? null)?.getTime() ?? 0
+          bValue = parseDate(b.funded_date ?? null)?.getTime() ?? 0
+          break
+        case 'funded_amount':
+          aValue = a.funded_amount ?? 0
+          bValue = b.funded_amount ?? 0
+          break
+        case 'commission':
+          aValue = a.commission_amount ?? 0
+          bValue = b.commission_amount ?? 0
+          break
+        case 'paid_to_rep':
+          aValue = a.paid ? 1 : 0
+          bValue = b.paid ? 1 : 0
+          break
+        case 'funder_paid':
+          aValue = a.funder_paid_parkview ? 1 : 0
+          bValue = b.funder_paid_parkview ? 1 : 0
+          break
+        default:
+          continue
+      }
+
+      if (aValue == null && bValue == null) continue
+      if (aValue == null) return config.direction === 'asc' ? 1 : -1
+      if (bValue == null) return config.direction === 'asc' ? -1 : 1
+
+      let comparison = 0
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
+      } else {
+        comparison = (aValue as number) - (bValue as number)
+      }
+
+      if (comparison !== 0) {
+        return config.direction === 'asc' ? comparison : -comparison
+      }
+    }
+    return 0
+  })
+}
+
+export interface RepCommissionGroupedData {
+  groupKey: string
+  groupLabel: string
+  rows: CommissionPayoutRep[]
+  totals: {
+    count: number
+    totalFunded: number
+    totalCommission: number
+    paidCount: number
+    pendingCount: number
+  }
+  isExpanded: boolean
+}
+
+export function groupRepCommissions(
+  data: CommissionPayoutRep[],
+  groupBy: RepCommissionGroupByOption,
+  expandedGroups: Set<string> = new Set()
+): RepCommissionGroupedData[] {
+  if (groupBy === 'none') {
+    const totals = {
+      count: data.length,
+      totalFunded: data.reduce((sum, r) => sum + (r.funded_amount ?? 0), 0),
+      totalCommission: data.reduce((sum, r) => sum + (r.commission_amount ?? 0), 0),
+      paidCount: data.filter(r => r.paid).length,
+      pendingCount: data.filter(r => !r.paid).length,
+    }
+    return [{
+      groupKey: 'all',
+      groupLabel: 'All Commissions',
+      rows: data,
+      totals,
+      isExpanded: true,
+    }]
+  }
+
+  const groups = new Map<string, CommissionPayoutRep[]>()
+
+  for (const row of data) {
+    let key: string
+    switch (groupBy) {
+      case 'rep_name':
+        key = row.rep_name || 'Unknown'
+        break
+      case 'lender':
+        key = row.lender || 'Unknown'
+        break
+      case 'paid_to_rep':
+        key = row.paid ? 'Paid' : 'Pending'
+        break
+      case 'funder_paid':
+        if (row.lender_inhouse) {
+          key = 'In-House'
+        } else {
+          key = row.funder_paid_parkview ? 'Received' : 'Pending'
+        }
+        break
+      case 'funded_date_month':
+        key = getMonthYearKey(row.funded_date ?? null)
+        break
+      case 'funded_date_year':
+        key = getYearKey(row.funded_date ?? null)
+        break
+      default:
+        key = 'all'
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(row)
+  }
+
+  const result: RepCommissionGroupedData[] = Array.from(groups.entries()).map(([key, rows]) => {
+    const totals = {
+      count: rows.length,
+      totalFunded: rows.reduce((sum, r) => sum + (r.funded_amount ?? 0), 0),
+      totalCommission: rows.reduce((sum, r) => sum + (r.commission_amount ?? 0), 0),
+      paidCount: rows.filter(r => r.paid).length,
+      pendingCount: rows.filter(r => !r.paid).length,
+    }
+
+    let label = key
+    if (groupBy === 'funded_date_month') {
+      label = formatMonthYearLabel(key)
+    }
+
+    return {
+      groupKey: key,
+      groupLabel: label,
+      rows,
+      totals,
+      isExpanded: expandedGroups.has(key),
+    }
+  })
+
+  // Sort groups
+  result.sort((a, b) => {
+    if (groupBy.startsWith('funded_date')) {
+      return b.groupKey.localeCompare(a.groupKey)
+    }
+    return a.groupLabel.localeCompare(b.groupLabel)
+  })
+
+  return result
+}
+
+export function getRepCommissionUniqueValues(
+  data: CommissionPayoutRep[],
+  columnId: RepCommissionColumnId
+): string[] {
+  const values = new Set<string>()
+
+  for (const row of data) {
+    let value: string
+    switch (columnId) {
+      case 'deal_name':
+        value = row.deal_name || ''
+        break
+      case 'rep_name':
+        value = row.rep_name || ''
+        break
+      case 'lender':
+        value = row.lender || ''
+        break
+      case 'paid_to_rep':
+        value = row.paid ? 'Paid' : 'Pending'
+        break
+      case 'funder_paid':
+        if (row.lender_inhouse) {
+          value = 'In-House'
+        } else {
+          value = row.funder_paid_parkview ? 'Received' : 'Pending'
+        }
+        break
+      default:
+        continue
+    }
+    if (value.trim()) {
+      values.add(value)
+    }
+  }
+
+  return Array.from(values).sort()
+}
+
+export function toggleRepCommissionSort(
+  sortConfigs: RepCommissionSortConfig[],
+  columnId: RepCommissionColumnId
+): RepCommissionSortConfig[] {
+  const existing = sortConfigs.find(c => c.columnId === columnId)
+
+  if (!existing) {
+    return [{ columnId, direction: 'asc', priority: 1 }]
+  }
+
+  if (existing.direction === 'asc') {
+    return [{ columnId, direction: 'desc', priority: 1 }]
+  }
+
+  return []
+}
+
+export function getRepCommissionSortIndicator(
+  sortConfigs: RepCommissionSortConfig[],
+  columnId: RepCommissionColumnId
+): { priority: number | null; direction: SortDirection } {
+  const config = sortConfigs.find(c => c.columnId === columnId)
+  if (!config || config.direction === null) {
+    return { priority: null, direction: null }
+  }
+  return { priority: config.priority, direction: config.direction }
+}
+
+// Rep Commission localStorage helpers
+const REP_COMMISSION_SAVED_VIEWS_KEY = 'parkview_rep_commission_saved_views'
+
+export function loadRepCommissionSavedViews(): RepCommissionSavedView[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const data = localStorage.getItem(REP_COMMISSION_SAVED_VIEWS_KEY)
+    if (!data) return []
+    return JSON.parse(data)
+  } catch {
+    return []
+  }
+}
+
+export function saveRepCommissionSavedViews(views: RepCommissionSavedView[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(REP_COMMISSION_SAVED_VIEWS_KEY, JSON.stringify(views))
+  } catch (error) {
+    console.error('Failed to save views:', error)
+  }
+}
+
+export function createRepCommissionSavedView(
+  name: string,
+  state: RepCommissionTableState
+): RepCommissionSavedView {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    state: { ...state },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function resetRepCommissionToDefault(): RepCommissionTableState {
+  return { ...DEFAULT_REP_COMMISSION_TABLE_STATE }
+}
+
+export function hasRepCommissionActiveFilters(state: RepCommissionTableState): boolean {
+  return (
+    state.filters.length > 0 ||
+    state.dateRange.startDate !== null ||
+    state.dateRange.endDate !== null ||
+    state.searchQuery.trim() !== ''
+  )
+}
+
+export function getRepCommissionActiveFilterCount(state: RepCommissionTableState): number {
+  let count = 0
+  count += state.filters.filter(f => f.selectedValues.length > 0).length
+  if (state.dateRange.startDate || state.dateRange.endDate) count++
+  if (state.searchQuery.trim()) count++
+  return count
+}
+
+// ============ ISO COMMISSION UTILITIES ============
+
+export function filterISOCommissions(
+  data: CommissionPayoutISO[],
+  state: ISOCommissionTableState
+): CommissionPayoutISO[] {
+  let filtered = data
+
+  // Apply search
+  if (state.searchQuery.trim()) {
+    const query = state.searchQuery.toLowerCase().trim()
+    filtered = filtered.filter(row => {
+      const dealName = (row.deal_name || '').toLowerCase()
+      const isoName = (row.iso_name || '').toLowerCase()
+      const lender = (row.lender || '').toLowerCase()
+      return dealName.includes(query) || isoName.includes(query) || lender.includes(query)
+    })
+  }
+
+  // Apply column filters
+  for (const filter of state.filters) {
+    if (filter.selectedValues.length === 0) continue
+
+    filtered = filtered.filter(row => {
+      let value: string
+      switch (filter.columnId) {
+        case 'deal_name':
+          value = row.deal_name || ''
+          break
+        case 'iso_name':
+          value = row.iso_name || ''
+          break
+        case 'lender':
+          value = row.lender || ''
+          break
+        case 'paid_to_iso':
+          value = row.paid ? 'Paid' : 'Pending'
+          break
+        default:
+          value = ''
+      }
+      return filter.selectedValues.includes(value)
+    })
+  }
+
+  // Apply date range
+  if (state.dateRange.startDate || state.dateRange.endDate) {
+    filtered = filtered.filter(row => {
+      const rowDate = parseDate(row.funded_date ?? null)
+      if (!rowDate) return false
+
+      if (state.dateRange.startDate) {
+        const start = new Date(state.dateRange.startDate)
+        start.setHours(0, 0, 0, 0)
+        if (rowDate < start) return false
+      }
+
+      if (state.dateRange.endDate) {
+        const end = new Date(state.dateRange.endDate)
+        end.setHours(23, 59, 59, 999)
+        if (rowDate > end) return false
+      }
+
+      return true
+    })
+  }
+
+  return filtered
+}
+
+export function sortISOCommissions(
+  data: CommissionPayoutISO[],
+  sortConfigs: ISOCommissionSortConfig[]
+): CommissionPayoutISO[] {
+  if (sortConfigs.length === 0) return data
+
+  const sortedConfigs = [...sortConfigs]
+    .filter(c => c.direction !== null)
+    .sort((a, b) => a.priority - b.priority)
+
+  if (sortedConfigs.length === 0) return data
+
+  return [...data].sort((a, b) => {
+    for (const config of sortedConfigs) {
+      let aValue: string | number | boolean | null
+      let bValue: string | number | boolean | null
+
+      switch (config.columnId) {
+        case 'deal_name':
+          aValue = a.deal_name ?? null
+          bValue = b.deal_name ?? null
+          break
+        case 'iso_name':
+          aValue = a.iso_name ?? null
+          bValue = b.iso_name ?? null
+          break
+        case 'lender':
+          aValue = a.lender ?? null
+          bValue = b.lender ?? null
+          break
+        case 'funded_date':
+          aValue = parseDate(a.funded_date ?? null)?.getTime() ?? 0
+          bValue = parseDate(b.funded_date ?? null)?.getTime() ?? 0
+          break
+        case 'funded_amount':
+          aValue = a.funded_amount ?? 0
+          bValue = b.funded_amount ?? 0
+          break
+        case 'commission':
+          aValue = a.commission_amount ?? 0
+          bValue = b.commission_amount ?? 0
+          break
+        case 'paid_to_iso':
+          aValue = a.paid ? 1 : 0
+          bValue = b.paid ? 1 : 0
+          break
+        default:
+          continue
+      }
+
+      if (aValue == null && bValue == null) continue
+      if (aValue == null) return config.direction === 'asc' ? 1 : -1
+      if (bValue == null) return config.direction === 'asc' ? -1 : 1
+
+      let comparison = 0
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue, undefined, { sensitivity: 'base' })
+      } else {
+        comparison = (aValue as number) - (bValue as number)
+      }
+
+      if (comparison !== 0) {
+        return config.direction === 'asc' ? comparison : -comparison
+      }
+    }
+    return 0
+  })
+}
+
+export interface ISOCommissionGroupedData {
+  groupKey: string
+  groupLabel: string
+  rows: CommissionPayoutISO[]
+  totals: {
+    count: number
+    totalFunded: number
+    totalCommission: number
+    paidCount: number
+    pendingCount: number
+  }
+  isExpanded: boolean
+}
+
+export function groupISOCommissions(
+  data: CommissionPayoutISO[],
+  groupBy: ISOCommissionGroupByOption,
+  expandedGroups: Set<string> = new Set()
+): ISOCommissionGroupedData[] {
+  if (groupBy === 'none') {
+    const totals = {
+      count: data.length,
+      totalFunded: data.reduce((sum, r) => sum + (r.funded_amount ?? 0), 0),
+      totalCommission: data.reduce((sum, r) => sum + (r.commission_amount ?? 0), 0),
+      paidCount: data.filter(r => r.paid).length,
+      pendingCount: data.filter(r => !r.paid).length,
+    }
+    return [{
+      groupKey: 'all',
+      groupLabel: 'All Commissions',
+      rows: data,
+      totals,
+      isExpanded: true,
+    }]
+  }
+
+  const groups = new Map<string, CommissionPayoutISO[]>()
+
+  for (const row of data) {
+    let key: string
+    switch (groupBy) {
+      case 'iso_name':
+        key = row.iso_name || 'Unknown'
+        break
+      case 'lender':
+        key = row.lender || 'Unknown'
+        break
+      case 'paid_to_iso':
+        key = row.paid ? 'Paid' : 'Pending'
+        break
+      case 'funded_date_month':
+        key = getMonthYearKey(row.funded_date ?? null)
+        break
+      case 'funded_date_year':
+        key = getYearKey(row.funded_date ?? null)
+        break
+      default:
+        key = 'all'
+    }
+
+    if (!groups.has(key)) {
+      groups.set(key, [])
+    }
+    groups.get(key)!.push(row)
+  }
+
+  const result: ISOCommissionGroupedData[] = Array.from(groups.entries()).map(([key, rows]) => {
+    const totals = {
+      count: rows.length,
+      totalFunded: rows.reduce((sum, r) => sum + (r.funded_amount ?? 0), 0),
+      totalCommission: rows.reduce((sum, r) => sum + (r.commission_amount ?? 0), 0),
+      paidCount: rows.filter(r => r.paid).length,
+      pendingCount: rows.filter(r => !r.paid).length,
+    }
+
+    let label = key
+    if (groupBy === 'funded_date_month') {
+      label = formatMonthYearLabel(key)
+    }
+
+    return {
+      groupKey: key,
+      groupLabel: label,
+      rows,
+      totals,
+      isExpanded: expandedGroups.has(key),
+    }
+  })
+
+  // Sort groups
+  result.sort((a, b) => {
+    if (groupBy.startsWith('funded_date')) {
+      return b.groupKey.localeCompare(a.groupKey)
+    }
+    return a.groupLabel.localeCompare(b.groupLabel)
+  })
+
+  return result
+}
+
+export function getISOCommissionUniqueValues(
+  data: CommissionPayoutISO[],
+  columnId: ISOCommissionColumnId
+): string[] {
+  const values = new Set<string>()
+
+  for (const row of data) {
+    let value: string
+    switch (columnId) {
+      case 'deal_name':
+        value = row.deal_name || ''
+        break
+      case 'iso_name':
+        value = row.iso_name || ''
+        break
+      case 'lender':
+        value = row.lender || ''
+        break
+      case 'paid_to_iso':
+        value = row.paid ? 'Paid' : 'Pending'
+        break
+      default:
+        continue
+    }
+    if (value.trim()) {
+      values.add(value)
+    }
+  }
+
+  return Array.from(values).sort()
+}
+
+export function toggleISOCommissionSort(
+  sortConfigs: ISOCommissionSortConfig[],
+  columnId: ISOCommissionColumnId
+): ISOCommissionSortConfig[] {
+  const existing = sortConfigs.find(c => c.columnId === columnId)
+
+  if (!existing) {
+    return [{ columnId, direction: 'asc', priority: 1 }]
+  }
+
+  if (existing.direction === 'asc') {
+    return [{ columnId, direction: 'desc', priority: 1 }]
+  }
+
+  return []
+}
+
+export function getISOCommissionSortIndicator(
+  sortConfigs: ISOCommissionSortConfig[],
+  columnId: ISOCommissionColumnId
+): { priority: number | null; direction: SortDirection } {
+  const config = sortConfigs.find(c => c.columnId === columnId)
+  if (!config || config.direction === null) {
+    return { priority: null, direction: null }
+  }
+  return { priority: config.priority, direction: config.direction }
+}
+
+// ISO Commission localStorage helpers
+const ISO_COMMISSION_SAVED_VIEWS_KEY = 'parkview_iso_commission_saved_views'
+
+export function loadISOCommissionSavedViews(): ISOCommissionSavedView[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const data = localStorage.getItem(ISO_COMMISSION_SAVED_VIEWS_KEY)
+    if (!data) return []
+    return JSON.parse(data)
+  } catch {
+    return []
+  }
+}
+
+export function saveISOCommissionSavedViews(views: ISOCommissionSavedView[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(ISO_COMMISSION_SAVED_VIEWS_KEY, JSON.stringify(views))
+  } catch (error) {
+    console.error('Failed to save views:', error)
+  }
+}
+
+export function createISOCommissionSavedView(
+  name: string,
+  state: ISOCommissionTableState
+): ISOCommissionSavedView {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    state: { ...state },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function resetISOCommissionToDefault(): ISOCommissionTableState {
+  return { ...DEFAULT_ISO_COMMISSION_TABLE_STATE }
+}
+
+export function hasISOCommissionActiveFilters(state: ISOCommissionTableState): boolean {
+  return (
+    state.filters.length > 0 ||
+    state.dateRange.startDate !== null ||
+    state.dateRange.endDate !== null ||
+    state.searchQuery.trim() !== ''
+  )
+}
+
+export function getISOCommissionActiveFilterCount(state: ISOCommissionTableState): number {
+  let count = 0
+  count += state.filters.filter(f => f.selectedValues.length > 0).length
+  if (state.dateRange.startDate || state.dateRange.endDate) count++
+  if (state.searchQuery.trim()) count++
+  return count
 }

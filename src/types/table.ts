@@ -310,3 +310,208 @@ export interface CommissionSavedView {
   createdAt: string
   updatedAt: string
 }
+
+// ============ REP COMMISSION TABLE TYPES ============
+
+export type RepCommissionColumnId =
+  | 'deal_name'
+  | 'rep_name'
+  | 'lender'
+  | 'funded_date'
+  | 'funded_amount'
+  | 'commission'
+  | 'paid_to_rep'
+  | 'funder_paid'
+
+export interface RepCommissionColumnDef {
+  id: RepCommissionColumnId
+  label: string
+  accessor: string
+  align?: 'left' | 'right' | 'center'
+  format?: 'currency' | 'date' | 'text' | 'status'
+  sortable?: boolean
+  filterable?: boolean
+  width?: number
+}
+
+export const REP_COMMISSION_COLUMNS: RepCommissionColumnDef[] = [
+  { id: 'deal_name', label: 'Deal Name', accessor: 'deal_name', align: 'left', format: 'text', sortable: true, filterable: true, width: 200 },
+  { id: 'rep_name', label: 'Rep', accessor: 'rep_name', align: 'left', format: 'text', sortable: true, filterable: true, width: 140 },
+  { id: 'lender', label: 'Lender', accessor: 'lender', align: 'left', format: 'text', sortable: true, filterable: true, width: 140 },
+  { id: 'funded_date', label: 'Funded Date', accessor: 'funded_date', align: 'left', format: 'date', sortable: true, filterable: true, width: 110 },
+  { id: 'funded_amount', label: 'Funded Amount', accessor: 'funded_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 130 },
+  { id: 'commission', label: 'Commission', accessor: 'commission_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 120 },
+  { id: 'paid_to_rep', label: 'Paid to Rep', accessor: 'paid', align: 'center', format: 'status', sortable: true, filterable: true, width: 110 },
+  { id: 'funder_paid', label: 'Funder Paid Us', accessor: 'funder_paid_parkview', align: 'center', format: 'status', sortable: true, filterable: true, width: 120 },
+]
+
+export const DEFAULT_REP_COMMISSION_VISIBLE_COLUMNS: RepCommissionColumnId[] = [
+  'deal_name',
+  'rep_name',
+  'lender',
+  'funded_date',
+  'funded_amount',
+  'commission',
+  'paid_to_rep',
+  'funder_paid',
+]
+
+export type RepCommissionGroupByOption =
+  | 'none'
+  | 'rep_name'
+  | 'lender'
+  | 'paid_to_rep'
+  | 'funder_paid'
+  | 'funded_date_month'
+  | 'funded_date_year'
+
+export const REP_COMMISSION_GROUP_BY_OPTIONS: { value: RepCommissionGroupByOption; label: string }[] = [
+  { value: 'none', label: 'No Grouping' },
+  { value: 'rep_name', label: 'Rep' },
+  { value: 'lender', label: 'Lender' },
+  { value: 'paid_to_rep', label: 'Paid to Rep' },
+  { value: 'funder_paid', label: 'Funder Paid Us' },
+  { value: 'funded_date_month', label: 'Funded Date (Month)' },
+  { value: 'funded_date_year', label: 'Funded Date (Year)' },
+]
+
+export interface RepCommissionSortConfig {
+  columnId: RepCommissionColumnId
+  direction: SortDirection
+  priority: number
+}
+
+export interface RepCommissionFilter {
+  columnId: RepCommissionColumnId
+  selectedValues: string[]
+}
+
+export interface RepCommissionTableState {
+  visibleColumns: RepCommissionColumnId[]
+  sortConfigs: RepCommissionSortConfig[]
+  filters: RepCommissionFilter[]
+  dateRange: DateRangeFilter
+  groupBy: RepCommissionGroupByOption
+  searchQuery: string
+  pageSize: number
+  currentPage: number
+}
+
+export const DEFAULT_REP_COMMISSION_TABLE_STATE: RepCommissionTableState = {
+  visibleColumns: DEFAULT_REP_COMMISSION_VISIBLE_COLUMNS,
+  sortConfigs: [{ columnId: 'funded_date', direction: 'desc', priority: 1 }],
+  filters: [],
+  dateRange: { startDate: null, endDate: null },
+  groupBy: 'none',
+  searchQuery: '',
+  pageSize: 50,
+  currentPage: 1,
+}
+
+export interface RepCommissionSavedView {
+  id: string
+  name: string
+  state: RepCommissionTableState
+  createdAt: string
+  updatedAt: string
+}
+
+// ============ ISO COMMISSION TABLE TYPES ============
+
+export type ISOCommissionColumnId =
+  | 'deal_name'
+  | 'iso_name'
+  | 'lender'
+  | 'funded_date'
+  | 'funded_amount'
+  | 'commission'
+  | 'paid_to_iso'
+
+export interface ISOCommissionColumnDef {
+  id: ISOCommissionColumnId
+  label: string
+  accessor: string
+  align?: 'left' | 'right' | 'center'
+  format?: 'currency' | 'date' | 'text' | 'status'
+  sortable?: boolean
+  filterable?: boolean
+  width?: number
+}
+
+export const ISO_COMMISSION_COLUMNS: ISOCommissionColumnDef[] = [
+  { id: 'deal_name', label: 'Deal Name', accessor: 'deal_name', align: 'left', format: 'text', sortable: true, filterable: true, width: 200 },
+  { id: 'iso_name', label: 'ISO', accessor: 'iso_name', align: 'left', format: 'text', sortable: true, filterable: true, width: 150 },
+  { id: 'lender', label: 'Lender', accessor: 'lender', align: 'left', format: 'text', sortable: true, filterable: true, width: 150 },
+  { id: 'funded_date', label: 'Funded Date', accessor: 'funded_date', align: 'left', format: 'date', sortable: true, filterable: true, width: 110 },
+  { id: 'funded_amount', label: 'Funded Amount', accessor: 'funded_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 130 },
+  { id: 'commission', label: 'Commission', accessor: 'commission_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 120 },
+  { id: 'paid_to_iso', label: 'Paid to ISO', accessor: 'paid', align: 'center', format: 'status', sortable: true, filterable: true, width: 120 },
+]
+
+export const DEFAULT_ISO_COMMISSION_VISIBLE_COLUMNS: ISOCommissionColumnId[] = [
+  'deal_name',
+  'iso_name',
+  'lender',
+  'funded_date',
+  'funded_amount',
+  'commission',
+  'paid_to_iso',
+]
+
+export type ISOCommissionGroupByOption =
+  | 'none'
+  | 'iso_name'
+  | 'lender'
+  | 'paid_to_iso'
+  | 'funded_date_month'
+  | 'funded_date_year'
+
+export const ISO_COMMISSION_GROUP_BY_OPTIONS: { value: ISOCommissionGroupByOption; label: string }[] = [
+  { value: 'none', label: 'No Grouping' },
+  { value: 'iso_name', label: 'ISO' },
+  { value: 'lender', label: 'Lender' },
+  { value: 'paid_to_iso', label: 'Paid to ISO' },
+  { value: 'funded_date_month', label: 'Funded Date (Month)' },
+  { value: 'funded_date_year', label: 'Funded Date (Year)' },
+]
+
+export interface ISOCommissionSortConfig {
+  columnId: ISOCommissionColumnId
+  direction: SortDirection
+  priority: number
+}
+
+export interface ISOCommissionFilter {
+  columnId: ISOCommissionColumnId
+  selectedValues: string[]
+}
+
+export interface ISOCommissionTableState {
+  visibleColumns: ISOCommissionColumnId[]
+  sortConfigs: ISOCommissionSortConfig[]
+  filters: ISOCommissionFilter[]
+  dateRange: DateRangeFilter
+  groupBy: ISOCommissionGroupByOption
+  searchQuery: string
+  pageSize: number
+  currentPage: number
+}
+
+export const DEFAULT_ISO_COMMISSION_TABLE_STATE: ISOCommissionTableState = {
+  visibleColumns: DEFAULT_ISO_COMMISSION_VISIBLE_COLUMNS,
+  sortConfigs: [{ columnId: 'funded_date', direction: 'desc', priority: 1 }],
+  filters: [],
+  dateRange: { startDate: null, endDate: null },
+  groupBy: 'none',
+  searchQuery: '',
+  pageSize: 50,
+  currentPage: 1,
+}
+
+export interface ISOCommissionSavedView {
+  id: string
+  name: string
+  state: ISOCommissionTableState
+  createdAt: string
+  updatedAt: string
+}

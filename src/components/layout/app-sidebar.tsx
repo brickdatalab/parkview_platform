@@ -9,6 +9,9 @@ import {
   MessageSquare,
   LogOut,
   PlusCircle,
+  ChevronRight,
+  Users,
+  Building,
 } from "lucide-react"
 
 import {
@@ -22,7 +25,15 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
+import { prefetchRepCommissions, prefetchISOCommissions } from "@/hooks/use-commissions"
 
 const navActions = [
   { title: "Submit New Funded", href: "/dashboard/submit", icon: PlusCircle },
@@ -39,7 +51,6 @@ const navActions = [
 
 const navKnowledge = [
   { title: "Funded Deals", href: "/dashboard", icon: BarChart3 },
-  { title: "Commissions", href: "/dashboard/commissions", icon: DollarSign },
 ]
 
 interface UserInfo {
@@ -132,6 +143,53 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {/* Commissions with submenu */}
+              <Collapsible
+                defaultOpen={pathname.startsWith("/dashboard/commissions")}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton tooltip="Commissions">
+                      <DollarSign />
+                      <span>Commissions</span>
+                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === "/dashboard/commissions/reps"}
+                        >
+                          <Link
+                            href="/dashboard/commissions/reps"
+                            onMouseEnter={prefetchRepCommissions}
+                          >
+                            <Users className="h-4 w-4" />
+                            <span>Reps</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === "/dashboard/commissions/iso"}
+                        >
+                          <Link
+                            href="/dashboard/commissions/iso"
+                            onMouseEnter={prefetchISOCommissions}
+                          >
+                            <Building className="h-4 w-4" />
+                            <span>ISO</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

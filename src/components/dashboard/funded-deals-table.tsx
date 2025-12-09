@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import * as React from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Table,
   TableBody,
@@ -56,6 +57,43 @@ import {
 import { TableToolbar } from './table-toolbar'
 import { FilterDropdown, DateRangeFilter } from './filter-dropdown'
 
+// Column width management
+interface ColumnWidths {
+  [key: string]: number
+}
+
+const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
+  deal_name: 180,
+  funded_date: 100,
+  funded_amount: 120,
+  rep: 120,
+  lender: 120,
+  commission: 100,
+  psf: 80,
+  total_rev: 100,
+  factor_rate: 80,
+  term: 60,
+  rep_commission: 110,
+  deal_type: 100,
+  lead_source: 100,
+}
+
+function getStoredWidths(): ColumnWidths {
+  if (typeof window === 'undefined') return DEFAULT_COLUMN_WIDTHS
+  try {
+    const stored = localStorage.getItem('funded-deals-column-widths')
+    return stored ? { ...DEFAULT_COLUMN_WIDTHS, ...JSON.parse(stored) } : DEFAULT_COLUMN_WIDTHS
+  } catch {
+    return DEFAULT_COLUMN_WIDTHS
+  }
+}
+
+function storeWidths(widths: ColumnWidths) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('funded-deals-column-widths', JSON.stringify(widths))
+  }
+}
+
 interface FundedDealsTableProps {
   data: FundedDeal[]
   totalCount: number
@@ -69,9 +107,11 @@ interface SortableHeaderProps {
   onSort: (columnId: ColumnId) => void
   filterOptions: string[]
   activeFilter: ColumnFilter | undefined
-  onFilterChange: (filter: ColumnFilter) => void
+  onFilterChange: (filter: { columnId: string; selectedValues: string[] }) => void
   dateRange?: { startDate: string | null; endDate: string | null }
   onDateRangeChange?: (start: string | null, end: string | null) => void
+  width: number
+  onWidthChange: (width: number) => void
 }
 
 function SortableHeader({
@@ -83,15 +123,47 @@ function SortableHeader({
   onFilterChange,
   dateRange,
   onDateRangeChange,
+  width,
+  onWidthChange,
 }: SortableHeaderProps) {
   const { priority, direction } = getSortIndicator(sortConfigs, column.id)
   const isActive = direction !== null
+  const headerRef = useRef<HTMLTableCellElement>(null)
+  const startXRef = useRef<number>(0)
+  const startWidthRef = useRef<number>(0)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    startXRef.current = e.clientX
+    startWidthRef.current = headerRef.current?.offsetWidth || width
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const diff = e.clientX - startXRef.current
+      const newWidth = Math.max(50, startWidthRef.current + diff)
+      onWidthChange(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [width, onWidthChange])
 
   return (
     <TableHead
-      className={`select-none ${column.align === 'right' ? 'text-right' : ''}`}
+      ref={headerRef}
+      className={`select-none relative group ${column.align === 'right' ? 'text-right' : ''}`}
+      style={{ width: `${width}px`, minWidth: '50px' }}
     >
-      <div className={`flex items-center gap-1 ${column.align === 'right' ? 'justify-end' : ''}`}>
+      <div className={`flex items-center gap-1 pr-2 ${column.align === 'right' ? 'justify-end' : ''}`}>
         {/* Filter button */}
         {column.filterable && column.id === 'funded_date' && dateRange && onDateRangeChange ? (
           <DateRangeFilter
@@ -112,12 +184,12 @@ function SortableHeader({
         {/* Sort button */}
         {column.sortable ? (
           <button
-            className="flex items-center gap-1 transition-colors hover:text-foreground"
+            className="flex items-center gap-1 transition-colors hover:text-foreground truncate"
             onClick={() => onSort(column.id)}
           >
-            {column.label}
+            <span className="truncate">{column.label}</span>
             {isActive ? (
-              <span className="flex items-center text-primary">
+              <span className="flex items-center text-primary flex-shrink-0">
                 {priority !== null && sortConfigs.length > 1 && (
                   <span className="text-[10px] mr-0.5">{priority}</span>
                 )}
@@ -128,13 +200,19 @@ function SortableHeader({
                 )}
               </span>
             ) : (
-              <ArrowUpDown className="h-3.5 w-3.5 opacity-30" />
+              <ArrowUpDown className="h-3.5 w-3.5 opacity-30 flex-shrink-0" />
             )}
           </button>
         ) : (
-          <span>{column.label}</span>
+          <span className="truncate">{column.label}</span>
         )}
       </div>
+      {/* Resize handle */}
+      <div
+        className="absolute top-0 right-0 h-full w-1 cursor-col-resize hover:bg-primary/50 active:bg-primary opacity-0 group-hover:opacity-100 transition-opacity"
+        onMouseDown={handleMouseDown}
+        onClick={(e) => e.stopPropagation()}
+      />
     </TableHead>
   )
 }
@@ -202,6 +280,17 @@ export function FundedDealsTable({
 
   // Expanded groups for grouped view
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+
+  // Column widths state
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(getStoredWidths)
+
+  const handleColumnWidthChange = useCallback((columnId: string, width: number) => {
+    setColumnWidths(prev => {
+      const next = { ...prev, [columnId]: width }
+      storeWidths(next)
+      return next
+    })
+  }, [])
 
   // Get visible columns
   const visibleColumnDefs = useMemo(() => {
@@ -285,10 +374,11 @@ export function FundedDealsTable({
     }))
   }, [])
 
-  const handleFilterChange = useCallback((filter: ColumnFilter) => {
+  const handleFilterChange = useCallback((filter: { columnId: string; selectedValues: string[] }) => {
     setTableState(prev => {
       const existingIndex = prev.filters.findIndex(f => f.columnId === filter.columnId)
       let newFilters: ColumnFilter[]
+      const typedFilter = filter as ColumnFilter
 
       if (filter.selectedValues.length === 0) {
         // Remove filter if no values selected
@@ -296,10 +386,10 @@ export function FundedDealsTable({
       } else if (existingIndex >= 0) {
         // Update existing filter
         newFilters = [...prev.filters]
-        newFilters[existingIndex] = filter
+        newFilters[existingIndex] = typedFilter
       } else {
         // Add new filter
-        newFilters = [...prev.filters, filter]
+        newFilters = [...prev.filters, typedFilter]
       }
 
       return {
@@ -402,7 +492,7 @@ export function FundedDealsTable({
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
                 {visibleColumnDefs.map((column) => (
@@ -416,6 +506,8 @@ export function FundedDealsTable({
                     onFilterChange={handleFilterChange}
                     dateRange={column.id === 'funded_date' ? tableState.dateRange : undefined}
                     onDateRangeChange={column.id === 'funded_date' ? handleDateRangeChange : undefined}
+                    width={columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100}
+                    onWidthChange={(width) => handleColumnWidthChange(column.id, width)}
                   />
                 ))}
               </TableRow>
@@ -443,17 +535,23 @@ export function FundedDealsTable({
                     key={deal.id}
                     className={index % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
                   >
-                    {visibleColumnDefs.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        className={`${column.align === 'right' ? 'text-right font-mono' : ''} ${
-                          column.id === 'deal_name' ? 'max-w-[200px] truncate font-medium' : ''
-                        }`}
-                        title={column.id === 'deal_name' ? (deal.deal_name || '') : undefined}
-                      >
-                        {formatCellValue(deal[column.accessor], column.format)}
-                      </TableCell>
-                    ))}
+                    {visibleColumnDefs.map((column) => {
+                      const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={`${column.align === 'right' ? 'text-right font-mono' : ''} ${
+                            column.id === 'deal_name' ? 'font-medium' : ''
+                          }`}
+                          style={{ width: `${width}px`, maxWidth: `${width}px` }}
+                          title={column.id === 'deal_name' ? (deal.deal_name || '') : undefined}
+                        >
+                          <div className="truncate">
+                            {formatCellValue(deal[column.accessor], column.format)}
+                          </div>
+                        </TableCell>
+                      )
+                    })}
                   </TableRow>
                 ))
               ) : (
@@ -463,6 +561,7 @@ export function FundedDealsTable({
                     key={group.groupKey}
                     group={group}
                     visibleColumns={visibleColumnDefs}
+                    columnWidths={columnWidths}
                     onToggle={() => handleToggleGroup(group.groupKey)}
                   />
                 ))
@@ -531,10 +630,12 @@ export function FundedDealsTable({
 function GroupRows({
   group,
   visibleColumns,
+  columnWidths,
   onToggle,
 }: {
   group: GroupedData
   visibleColumns: ColumnDef[]
+  columnWidths: ColumnWidths
   onToggle: () => void
 }) {
   return (
@@ -551,17 +652,23 @@ function GroupRows({
             key={deal.id}
             className={index % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
           >
-            {visibleColumns.map((column) => (
-              <TableCell
-                key={column.id}
-                className={`${column.align === 'right' ? 'text-right font-mono' : ''} ${
-                  column.id === 'deal_name' ? 'max-w-[200px] truncate font-medium pl-8' : ''
-                }`}
-                title={column.id === 'deal_name' ? (deal.deal_name || '') : undefined}
-              >
-                {formatCellValue(deal[column.accessor], column.format)}
-              </TableCell>
-            ))}
+            {visibleColumns.map((column) => {
+              const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
+              return (
+                <TableCell
+                  key={column.id}
+                  className={`${column.align === 'right' ? 'text-right font-mono' : ''} ${
+                    column.id === 'deal_name' ? 'font-medium pl-8' : ''
+                  }`}
+                  style={{ width: `${width}px`, maxWidth: `${width}px` }}
+                  title={column.id === 'deal_name' ? (deal.deal_name || '') : undefined}
+                >
+                  <div className="truncate">
+                    {formatCellValue(deal[column.accessor], column.format)}
+                  </div>
+                </TableCell>
+              )
+            })}
           </TableRow>
         ))}
     </>

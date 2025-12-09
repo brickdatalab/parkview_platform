@@ -10,14 +10,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import type { ColumnId, ColumnFilter } from '@/types/table'
-
 interface FilterDropdownProps {
-  columnId: ColumnId
+  columnId: string
   label: string
   options: string[]
   selectedValues: string[]
-  onFilterChange: (filter: ColumnFilter) => void
+  onFilterChange: (filter: { columnId: string; selectedValues: string[] }) => void
 }
 
 export function FilterDropdown({
