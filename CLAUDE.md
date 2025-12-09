@@ -1,15 +1,19 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with the Parkview Dashboard codebase.
 
 ## Project Overview
 
-Internal dashboard for Parkview Advance MCA/business loan brokerage. Tracks funded deals, commission calculations, and payment status. See README.md for full documentation.
+**Parkview Dashboard** is an internal business intelligence platform for Parkview Advance, an MCA (Merchant Cash Advance) and business loan brokerage. The dashboard tracks funded deals, calculates commissions, and monitors payment status for both in-house sales reps and ISO (Independent Sales Organization) partners.
 
-## Commands
+**Live URL:** https://dopemasterfunded-production.up.railway.app
+**Supabase Project:** `irssizfmrqeqcxwdvkhx` (us-east-1)
+**n8n Instance:** flow.clearscrub.io
+
+## Quick Start
 
 ```bash
-# Development (use port 3456)
+# Development (port 3456 to avoid conflicts)
 PORT=3456 npm run dev
 
 # Build & production
@@ -22,58 +26,74 @@ npm run lint
 
 ## Tech Stack
 
-- **Framework:** Next.js 16 App Router with React 19
-- **Styling:** Tailwind CSS 4 with shadcn/ui (new-york style)
-- **Database:** Supabase (PostgreSQL)
-- **Tables:** TanStack React Table for data grids
-- **Build:** Turbopack (built into Next.js)
+| Category | Technology |
+|----------|------------|
+| Framework | Next.js 16 (App Router) with React 19 |
+| Styling | Tailwind CSS 4 + shadcn/ui (new-york style) |
+| Database | Supabase (PostgreSQL) |
+| Auth | Supabase Auth via @supabase/ssr (cookie-based sessions) |
+| Data Tables | TanStack React Table v8 |
+| Data Fetching | SWR for client-side caching |
+| Icons | Lucide React |
+| Notifications | Sonner (toast) |
+| Build | Turbopack |
 
 ## Architecture
 
 ### Path Aliases
-Use `@/*` for imports from `./src/*`:
 ```typescript
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"           // ./src/lib/utils
+import { Button } from "@/components/ui/button"  // ./src/components/ui/button
 ```
 
 ### Directory Structure
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   └── dashboard/          # Main dashboard routes
+├── app/                          # Next.js App Router pages
+│   ├── login/page.tsx            # Auth login page
+│   ├── funding-form/page.tsx     # Embedded funded deal form
+│   └── dashboard/                # Protected dashboard routes
+│       ├── page.tsx              # Funded deals table
+│       ├── submit/page.tsx       # Submit new deal (iframe embed)
+│       ├── chat/page.tsx         # AI chat (placeholder)
+│       └── commissions/
+│           ├── page.tsx          # Redirects to /reps
+│           ├── reps/page.tsx     # Rep commission tracking
+│           └── iso/page.tsx      # ISO commission tracking
 ├── components/
-│   ├── ui/                 # shadcn/ui primitives (do not modify directly)
-│   ├── layout/             # AppSidebar, SiteHeader
-│   ├── dashboard/          # Funded deals components
-│   └── commissions/        # Commission tracking components
+│   ├── ui/                       # shadcn/ui primitives (21 components)
+│   ├── layout/                   # AppSidebar, SiteHeader
+│   ├── dashboard/                # FundedDealsTable, SummaryCards, filters
+│   └── commissions/              # Commission tables and components
 ├── lib/
-│   ├── supabase/           # Supabase client utilities
-│   │   ├── client.ts       # Browser client (use in Client Components)
-│   │   ├── server.ts       # Server client (use in Server Components)
-│   │   └── middleware.ts   # Middleware helper for route protection
-│   ├── queries.ts          # Data fetching functions
-│   ├── table-utils.ts      # Table sorting/filtering logic
-│   └── utils.ts            # cn() classname utility
+│   ├── supabase/
+│   │   ├── client.ts             # Browser client (Client Components)
+│   │   ├── server.ts             # Server client (Server Components)
+│   │   └── middleware.ts         # Auth middleware helper
+│   ├── queries.ts                # All Supabase data fetching functions
+│   ├── table-utils.ts            # Sorting, filtering, grouping logic
+│   └── utils.ts                  # cn() helper, formatters
 ├── types/
-│   └── database.ts         # Supabase schema types
+│   └── database.ts               # TypeScript types for Supabase schema
 └── hooks/
-    └── use-mobile.ts       # Responsive breakpoint hook
+    └── use-mobile.ts             # Responsive breakpoint hook
 ```
 
 ### Layout Hierarchy
 ```
-RootLayout → DashboardLayout → SidebarProvider → AppSidebar + SidebarInset → Page
+RootLayout
+└── DashboardLayout
+    └── SidebarProvider (cookie-persisted state)
+        ├── AppSidebar (navigation, user info, logout)
+        └── SidebarInset
+            └── Page content
 ```
-
-Sidebar collapse state persists via `sidebar_state` cookie.
 
 ## Key Patterns
 
-### Supabase Client
-Use the appropriate client based on context:
+### Supabase Client Selection
 
-**Browser/Client Components:**
+**Client Components (browser):**
 ```typescript
 import { createClient } from "@/lib/supabase/client"
 const supabase = createClient()
@@ -85,47 +105,172 @@ import { createClient } from "@/lib/supabase/server"
 const supabase = await createClient()
 ```
 
-### Authentication
-- Uses `@supabase/ssr` for cookie-based sessions
-- Middleware in `middleware.ts` protects `/dashboard/*` routes
-- Redirects unauthenticated users to `/login`
-- User metadata (first_name, last_name) stored in `raw_user_meta_data`
+### Data Fetching with Pagination
 
-### Adding shadcn/ui Components
-```bash
-npx shadcn@latest add <component-name>
-```
+Supabase has a 1000-row default limit. All fetch functions paginate:
 
-### Styling Utilities
-Use `cn()` for conditional classnames:
 ```typescript
-import { cn } from "@/lib/utils"
-cn("base-class", isActive && "active-class")
+export async function fetchFundedDeals(): Promise<FundedDeal[]> {
+  const pageSize = 1000
+  let allData: FundedDeal[] = []
+  let page = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const { data } = await supabase
+      .from('funded_deals')
+      .select('*')
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+
+    if (data) allData = [...allData, ...data]
+    hasMore = data?.length === pageSize
+    page++
+  }
+  return allData
+}
 ```
 
-## Database
+### SWR Caching (Commission Pages)
 
-Supabase project: `irssizfmrqeqcxwdvkhx` (us-east-1)
+```typescript
+const { data, isLoading } = useSWR('rep-commissions', fetchRepCommissions, {
+  dedupingInterval: 60000,  // 1 minute deduplication
+  keepPreviousData: true,
+  revalidateOnFocus: false,
+})
+```
 
-Primary table: `funded_deals` (~3,760 rows)
-- Contains all funded deal data with denormalized rep/lender names
-- Key fields: `deal_name`, `funded_amount`, `rep`, `lender`, `commission`, `parkview_rep_paid`
+### Authentication Flow
 
-Related tables: `reps`, `lenders`, `commission_payout_reps`, `internal_funded_form`
+1. Middleware (`middleware.ts`) intercepts `/dashboard/*` routes
+2. Checks for valid Supabase session via cookies
+3. Unauthenticated → redirect to `/login`
+4. Authenticated → proceed with user context
+5. User metadata (first_name, last_name) from `raw_user_meta_data`
 
-**Important:** The fetch functions in `queries.ts` paginate to bypass Supabase's 1000-row default limit.
+## Database Schema
+
+See `SUPABASE_SCHEMA.md` for complete schema documentation. Key tables:
+
+| Table | Rows | Purpose |
+|-------|------|---------|
+| `funded_deals` | ~3,760 | Master funded deal records |
+| `commission_payout_reps` | ~2,681 | Rep commission tracking |
+| `commission_payout_iso` | ~1,077 | ISO commission tracking |
+| `reps` | ~134 | Sales rep/ISO master data |
+| `lenders` | ~112 | Lender lookup |
+| `business_main` | ~1,879 | Normalized business names |
+| `internal_funded_form` | ~3,153 | Raw form submission archive |
+| `schlomo_parkview_deals` | ~1,517 | Schlomo system deal data |
+
+### Key Relationships
+```
+business_main (1) ←── (N) funded_deals
+                 ←── (N) commission_payout_reps
+                 ←── (N) commission_payout_iso
+
+funded_deals (1) ←── (N) commission_payout_reps
+             (1) ←── (N) commission_payout_iso
+
+reps (1) ←── (N) funded_deals (via rep_id)
+     (1) ←── (N) commission_payout_reps
+     (1) ←── (N) commission_payout_iso
+
+lenders (1) ←── (N) funded_deals (via lender_id)
+```
+
+## Data Pipeline
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Notion Form    │────▶│    n8n          │────▶│   Supabase      │
+│  Magic (Lovable)│     │  (flow.         │     │                 │
+│                 │     │  clearscrub.io) │     │                 │
+└─────────────────┘     └─────────────────┘     └────────┬────────┘
+                                                         │
+┌─────────────────┐                                      │
+│  Schlomo System │──────────────────────────────────────┤
+│  (via Zapier)   │                                      │
+└─────────────────┘                                      │
+                                                         ▼
+                                               ┌─────────────────┐
+                                               │    Dashboard    │
+                                               │    (Next.js)    │
+                                               └─────────────────┘
+```
+
+### n8n Workflows
+
+See `docs/n8n-workflows.md` for complete workflow documentation.
+
+| Workflow | Trigger | Tables Written |
+|----------|---------|----------------|
+| `create_business_main` | Webhook (form) | `business_main` |
+| `funded-form-internal` | Webhook (form) | `internal_funded_form`, `funded_deals`, `commission_payout_*` |
+| `new-schlomo-id-to-supa` | Webhook (Zapier) | `schlomo_parkview_deals` |
+
+## Current Features
+
+### Working
+- Funded Deals table with multi-column filtering, sorting, column visibility
+- Summary KPI cards (Total Funded, Commission, Deal Count, Avg Factor Rate)
+- Supabase authentication with middleware route protection
+- Rep Commission tracking page with SWR caching
+- ISO Commission tracking page (separate from Reps)
+- Collapsible sidebar with Commissions submenu
+- Commission grouping by Rep/ISO, Lender, Month, Year
+- Column width resizing (persisted to localStorage)
+- Sidebar collapse state (persisted to cookie)
+- Mobile responsive design
+
+### Placeholder/Incomplete
+- **Commission persistence** - Mark Paid/Clawback updates UI only, not database
+- **Submit page** - Embeds external Notion form via iframe
+- **Chat page** - Displays "AI Assistant at the bar" placeholder
 
 ## Environment Variables
 
 Required in `.env.local`:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+```
+NEXT_PUBLIC_SUPABASE_URL=https://irssizfmrqeqcxwdvkhx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-Copy from `.env.example` and fill with Supabase credentials.
+## Adding shadcn/ui Components
 
-## Current Limitations
+```bash
+npx shadcn@latest add <component-name>
+```
 
-1. **Commission updates not persisted** - Mark Paid/Clawback only updates UI state
-2. **Submit page** - Placeholder, not implemented
-3. **Chat page** - Placeholder, not implemented
-4. **Invite-only auth** - No public signup; users must be added via Supabase dashboard
+Components are installed to `src/components/ui/`. Do not modify these files directly.
+
+## Deployment
+
+- **Platform:** Railway
+- **Build:** `npm run build` (uses Turbopack)
+- **Environment:** Variables set in Railway dashboard
+
+## Development Notes
+
+1. **Port 3456** - Use to avoid conflicts with other local services
+2. **Turbopack** - Fast refresh, ~300-500ms startup
+3. **Cookie auth** - Session tokens in cookies for SSR compatibility
+4. **Pagination** - Always paginate Supabase queries (1000 row limit)
+5. **SWR prefetch** - Commission pages prefetch on sidebar hover
+
+## Project History
+
+| Date | Milestone |
+|------|-----------|
+| Dec 3, 2025 | Project created, initial dashboard with basic table |
+| Dec 4, 2025 | Full shadcn/ui conversion (21 components) |
+| Dec 5, 2025 | Comprehensive documentation, business_main table |
+| Dec 8, 2025 | Supabase auth, Parkview logo, commission split (Reps/ISO) |
+| Dec 9, 2025 | n8n workflow docs, schema update, final sprint prep |
+
+## File Reference
+
+- `SUPABASE_SCHEMA.md` - Complete database schema documentation
+- `docs/n8n-workflows.md` - n8n workflow logic and data flow
+- `docs/plans/` - Implementation plans for major features
+- `README.md` - User-facing documentation
