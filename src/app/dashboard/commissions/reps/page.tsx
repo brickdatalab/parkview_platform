@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
+import { CommissionSummaryCards, calculateCommissionSummary } from '@/components/commissions/commission-summary-cards'
 import { SiteHeader } from '@/components/layout/site-header'
 import { formatCurrency } from '@/lib/queries'
 import { useRepCommissions } from '@/hooks/use-commissions'
@@ -267,6 +268,9 @@ export default function RepsCommissionsPage() {
   const { data, error: swrError, isLoading: loading } = useRepCommissions()
   const error = swrError?.message ?? null
 
+  // Calculate summary for cards
+  const summary = useMemo(() => calculateCommissionSummary(data), [data])
+
   const [tableState, setTableState] = useState<RepCommissionTableState>(() => ({
     ...DEFAULT_REP_COMMISSION_TABLE_STATE,
   }))
@@ -450,7 +454,14 @@ export default function RepsCommissionsPage() {
   return (
     <>
       <SiteHeader title="Rep Commissions" />
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Summary Cards */}
+        <CommissionSummaryCards
+          summary={summary}
+          isLoading={loading}
+          variant="rep"
+        />
+
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex flex-col gap-4">

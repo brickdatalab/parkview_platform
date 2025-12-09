@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
+import { CommissionSummaryCards, calculateCommissionSummary } from '@/components/commissions/commission-summary-cards'
 import { SiteHeader } from '@/components/layout/site-header'
 import { formatCurrency } from '@/lib/queries'
 import { useISOCommissions } from '@/hooks/use-commissions'
@@ -266,6 +267,9 @@ export default function ISOCommissionsPage() {
   const { data, error: swrError, isLoading: loading } = useISOCommissions()
   const error = swrError?.message ?? null
 
+  // Calculate summary for cards
+  const summary = useMemo(() => calculateCommissionSummary(data), [data])
+
   const [tableState, setTableState] = useState<ISOCommissionTableState>(() => ({
     ...DEFAULT_ISO_COMMISSION_TABLE_STATE,
   }))
@@ -449,7 +453,14 @@ export default function ISOCommissionsPage() {
   return (
     <>
       <SiteHeader title="ISO Commissions" />
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Summary Cards */}
+        <CommissionSummaryCards
+          summary={summary}
+          isLoading={loading}
+          variant="iso"
+        />
+
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex flex-col gap-4">
