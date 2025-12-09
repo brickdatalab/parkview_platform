@@ -43,6 +43,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 import { prefetchRepCommissions, prefetchISOCommissions } from "@/hooks/use-commissions"
+import { prefetchFundedDeals } from "@/hooks/use-funded-deals"
 
 const navActions = [
   { title: "Submit New Funded", href: "/dashboard/submit", icon: PlusCircle },
@@ -136,7 +137,10 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                     isActive={pathname === item.href}
                     tooltip={item.title}
                   >
-                    <Link href={item.href}>
+                    <Link
+                      href={item.href}
+                      onMouseEnter={item.href === '/dashboard' ? prefetchFundedDeals : undefined}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
