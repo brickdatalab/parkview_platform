@@ -4,33 +4,21 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { FundedDealsTable } from '@/components/dashboard/funded-deals-table'
-import { fetchFundedDeals } from '@/lib/queries'
+import { useFundedDeals } from '@/hooks/use-funded-deals'
 import type { FundedDeal } from '@/types/database'
 import type { DashboardSummary } from '@/lib/queries'
 
 export default function DashboardPage() {
-  const [allDeals, setAllDeals] = useState<FundedDeal[]>([])
+  const { data: allDeals, error: fetchError, isLoading } = useFundedDeals()
   const [filteredDeals, setFilteredDeals] = useState<FundedDeal[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
+  // Update filtered deals when allDeals changes
   useEffect(() => {
-    async function loadData() {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const dealsData = await fetchFundedDeals()
-        setAllDeals(dealsData)
-        setFilteredDeals(dealsData)
-      } catch (err) {
-        console.error('Error loading dashboard data:', err)
-        setError('Failed to load dashboard data. Please try again.')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    loadData()
-  }, [])
+    setFilteredDeals(allDeals)
+  }, [allDeals])
+
+  // Convert error object to string for display
+  const error = fetchError ? 'Failed to load dashboard data. Please try again.' : null
 
   const handleFilteredDataChange = useCallback((data: FundedDeal[]) => {
     setFilteredDeals(data)
