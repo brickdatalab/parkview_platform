@@ -5,7 +5,6 @@ import { CommissionSummaryCards, calculateCommissionSummary } from '@/components
 import { SiteHeader } from '@/components/layout/site-header'
 import { formatCurrency } from '@/lib/queries'
 import { useRepCommissions } from '@/hooks/use-commissions'
-import type { CommissionPayoutRep } from '@/types/database'
 import type {
   RepCommissionTableState,
   RepCommissionColumnId,

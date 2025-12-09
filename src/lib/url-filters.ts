@@ -2,7 +2,28 @@
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useCallback } from 'react'
-import type { TableState, ColumnFilter } from '@/types/table'
+import type { TableState, ColumnFilter, ColumnId, GroupByOption } from '@/types/table'
+
+// Valid column IDs for sorting
+const VALID_COLUMN_IDS: ColumnId[] = [
+  'deal_name', 'rep', 'lender', 'funded_date', 'funded_amount',
+  'factor_rate', 'term', 'commission', 'psf', 'total_rev',
+  'rep_commission', 'deal_type', 'lead_source', 'sdeal_id'
+]
+
+// Valid group by options
+const VALID_GROUP_BY: GroupByOption[] = [
+  'none', 'funded_date_day', 'funded_date_month', 'funded_date_year',
+  'deal_name', 'lender', 'rep', 'funded_amount_range', 'term'
+]
+
+function isValidColumnId(value: string): value is ColumnId {
+  return VALID_COLUMN_IDS.includes(value as ColumnId)
+}
+
+function isValidGroupBy(value: string): value is GroupByOption {
+  return VALID_GROUP_BY.includes(value as GroupByOption)
+}
 
 /**
  * Serialize table state to URL search params
@@ -74,21 +95,21 @@ export function parseFiltersFromUrl(searchParams: URLSearchParams): Partial<Tabl
     }
   }
 
-  // Parse sort
+  // Parse sort (with type validation)
   const sortBy = searchParams.get('sortBy')
   const sortDir = searchParams.get('sortDir')
-  if (sortBy && sortDir) {
+  if (sortBy && sortDir && isValidColumnId(sortBy) && (sortDir === 'asc' || sortDir === 'desc')) {
     state.sortConfigs = [{
-      columnId: sortBy as any,
-      direction: sortDir as 'asc' | 'desc',
+      columnId: sortBy,
+      direction: sortDir,
       priority: 1,
     }]
   }
 
-  // Parse grouping
+  // Parse grouping (with type validation)
   const groupBy = searchParams.get('groupBy')
-  if (groupBy) {
-    state.groupBy = groupBy as any
+  if (groupBy && isValidGroupBy(groupBy)) {
+    state.groupBy = groupBy
   }
 
   return state

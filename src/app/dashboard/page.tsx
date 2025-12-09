@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
 import { SiteHeader } from '@/components/layout/site-header'
 import { SummaryCards } from '@/components/dashboard/summary-cards'
 import { FundedDealsTable } from '@/components/dashboard/funded-deals-table'
+import { TableSkeleton, SummaryCardsSkeleton } from '@/components/dashboard/table-skeleton'
 import { useFundedDeals } from '@/hooks/use-funded-deals'
 import { useUrlFilters } from '@/lib/url-filters'
 import type { FundedDeal } from '@/types/database'
@@ -95,8 +96,9 @@ function DashboardSkeleton() {
   return (
     <>
       <SiteHeader title="Funded Deals" />
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+        <SummaryCardsSkeleton />
+        <TableSkeleton rows={10} columns={8} />
       </div>
     </>
   )
