@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import type { TableState, ColumnFilter, ColumnId, GroupByOption } from '@/types/table'
 
 // Valid column IDs for sorting
@@ -123,14 +123,26 @@ export function useUrlFilters() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
+  // Track if we've already initialized to prevent re-parsing on URL updates we caused
+  const hasInitialized = useRef(false)
+
+  // Memoize initial state - only parse once on mount
+  const initialState = useMemo(() => {
+    if (hasInitialized.current) {
+      // Return empty object after first render to avoid re-initializing table
+      return {}
+    }
+    hasInitialized.current = true
+    return parseFiltersFromUrl(searchParams)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run once on mount
+
   const updateUrl = useCallback((state: TableState) => {
     const params = serializeFiltersToUrl(state)
     const queryString = params.toString()
     const newUrl = queryString ? `${pathname}?${queryString}` : pathname
     router.replace(newUrl, { scroll: false })
   }, [router, pathname])
-
-  const initialState = parseFiltersFromUrl(searchParams)
 
   return { initialState, updateUrl }
 }

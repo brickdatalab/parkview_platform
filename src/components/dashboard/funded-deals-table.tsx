@@ -330,16 +330,6 @@ export function FundedDealsTable({
     return { groups, flatData: sorted }
   }, [data, tableState, expandedGroups])
 
-  // Notify parent of filtered data changes
-  useEffect(() => {
-    onFilteredDataChange?.(processedData.flatData)
-  }, [processedData.flatData, onFilteredDataChange])
-
-  // Notify parent of state changes for URL persistence
-  useEffect(() => {
-    onStateChange?.(tableState)
-  }, [tableState, onStateChange])
-
   // Calculate pagination based on flat data (ungrouped)
   const totalPages = getTotalPages(processedData.flatData.length, tableState.pageSize)
   const paginatedFlatData = paginateData(processedData.flatData, tableState.pageSize, tableState.currentPage)
