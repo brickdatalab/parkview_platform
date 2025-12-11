@@ -37,11 +37,13 @@ async function fetchBrokeredCommissions(): Promise<BrokeredCommission[]> {
     // and transform to flat structure
     const brokeredDeals = (data || [])
       .filter((deal) => {
-        const lender = deal.lenders as { inhouse_funded: boolean | null } | null
-        return lender?.inhouse_funded === false
+        const lender = deal.lenders as { inhouse_funded: boolean | null } | null | { inhouse_funded: boolean | null }[]
+        const lenderObj = Array.isArray(lender) ? lender[0] : lender
+        return lenderObj?.inhouse_funded === false
       })
       .map((deal) => {
-        const lender = deal.lenders as { inhouse_funded: boolean | null } | null
+        const lender = deal.lenders as { inhouse_funded: boolean | null } | null | { inhouse_funded: boolean | null }[]
+        const lenderObj = Array.isArray(lender) ? lender[0] : lender
         return {
           id: deal.id,
           deal_name: deal.deal_name,
@@ -53,7 +55,7 @@ async function fetchBrokeredCommissions(): Promise<BrokeredCommission[]> {
           total_rev: deal.total_rev,
           funder_paid_parkview: deal.funder_paid_parkview,
           funder_paid_date: deal.funder_paid_date,
-          lender_inhouse_funded: lender?.inhouse_funded ?? undefined,
+          lender_inhouse_funded: lenderObj?.inhouse_funded ?? undefined,
         } as BrokeredCommission
       })
 
