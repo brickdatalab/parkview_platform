@@ -30,10 +30,22 @@ export interface Database {
           parkview_rep_paid: boolean | null
           iso_paid: boolean | null
           funder_paid_parkview: boolean | null
+          funder_paid_date: string | null
           created_at: string | null
           updated_at: string | null
           is_loc: boolean | null
           business_main_id: string | null
+        }
+      }
+      clawbacks: {
+        Row: {
+          id: string
+          funded_deal_id: string
+          clawback_type: 'rep' | 'iso' | 'brokered'
+          clawback_date: string
+          notes: string | null
+          created_at: string
+          updated_at: string
         }
       }
       commission_payout: {
@@ -155,4 +167,33 @@ export interface CommissionPayoutISO {
   funded_date?: string
   funded_amount?: number
   lender?: string
+}
+
+// Clawback type
+export type ClawbackType = 'rep' | 'iso' | 'brokered'
+
+export interface Clawback {
+  id: string
+  funded_deal_id: string
+  clawback_type: ClawbackType
+  clawback_date: string
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+// Brokered commission (deals with external lenders)
+export interface BrokeredCommission {
+  id: string
+  deal_name: string
+  lender: string | null
+  lender_id: string | null
+  rep: string | null
+  funded_date: string | null
+  funded_amount: number | null
+  total_rev: number | null
+  funder_paid_parkview: boolean | null
+  funder_paid_date: string | null
+  // Joined
+  lender_inhouse_funded?: boolean
 }

@@ -43,6 +43,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase/client"
 import { prefetchRepCommissions, prefetchISOCommissions } from "@/hooks/use-commissions"
+import { Handshake } from "lucide-react"
 import { prefetchFundedDeals } from "@/hooks/use-funded-deals"
 
 const navActions = [
@@ -187,6 +188,17 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                           >
                             <Building className="h-4 w-4" />
                             <span>ISO</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === "/dashboard/commissions/brokered"}
+                        >
+                          <Link href="/dashboard/commissions/brokered">
+                            <Handshake className="h-4 w-4" />
+                            <span>Brokered</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

@@ -447,6 +447,7 @@ export type ISOCommissionColumnId =
   | 'funded_amount'
   | 'commission'
   | 'paid_to_iso'
+  | 'paid_date'
 
 export interface ISOCommissionColumnDef {
   id: ISOCommissionColumnId
@@ -467,6 +468,7 @@ export const ISO_COMMISSION_COLUMNS: ISOCommissionColumnDef[] = [
   { id: 'funded_amount', label: 'Funded Amount', accessor: 'funded_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 130 },
   { id: 'commission', label: 'Commission', accessor: 'commission_amount', align: 'right', format: 'currency', sortable: true, filterable: false, width: 120 },
   { id: 'paid_to_iso', label: 'Paid to ISO', accessor: 'paid', align: 'center', format: 'status', sortable: true, filterable: true, width: 120 },
+  { id: 'paid_date', label: 'Paid Date', accessor: 'paid_date', align: 'left', format: 'date', sortable: true, filterable: false, width: 100 },
 ]
 
 export const DEFAULT_ISO_COMMISSION_VISIBLE_COLUMNS: ISOCommissionColumnId[] = [
@@ -477,6 +479,7 @@ export const DEFAULT_ISO_COMMISSION_VISIBLE_COLUMNS: ISOCommissionColumnId[] = [
   'funded_amount',
   'commission',
   'paid_to_iso',
+  'paid_date',
 ]
 
 export type ISOCommissionGroupByOption =

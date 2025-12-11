@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useMemo, useCallback, useRef } from 'react'
+import { useSWRConfig } from 'swr'
+import { toast } from 'sonner'
 import { CommissionSummaryCards, calculateCommissionSummary } from '@/components/commissions/commission-summary-cards'
 import { SiteHeader } from '@/components/layout/site-header'
 import { formatCurrency } from '@/lib/queries'
 import { useISOCommissions } from '@/hooks/use-commissions'
+import { useSelectionState } from '@/hooks/use-selection-state'
 import type {
   ISOCommissionTableState,
   ISOCommissionColumnId,
@@ -15,6 +18,7 @@ import {
   DEFAULT_ISO_COMMISSION_TABLE_STATE,
   PAGE_SIZE_OPTIONS,
 } from '@/types/table'
+import type { CommissionPayoutISO } from '@/types/database'
 import {
   Table,
   TableBody,
@@ -24,8 +28,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -44,6 +48,16 @@ import {
 } from 'lucide-react'
 import { ISOCommissionToolbar } from '@/components/commissions/iso-commission-toolbar'
 import { FilterDropdown, DateRangeFilter } from '@/components/dashboard/filter-dropdown'
+import { PaymentStatusBadge } from '@/components/commissions/PaymentStatusBadge'
+import { EditableDateCell } from '@/components/commissions/EditableDateCell'
+import { RowContextMenu } from '@/components/commissions/RowContextMenu'
+import { BulkActionBar } from '@/components/commissions/BulkActionBar'
+import {
+  updateISOCommissionsPaid,
+  createClawbacks,
+  updateISOPaidDate,
+  getTodayDate,
+} from '@/lib/commission-mutations'
 import {
   filterISOCommissions,
   sortISOCommissions,
@@ -68,6 +82,7 @@ const DEFAULT_COLUMN_WIDTHS: ColumnWidths = {
   funded_amount: 130,
   commission: 120,
   paid_to_iso: 110,
+  paid_date: 100,
 }
 
 function getStoredWidths(): ColumnWidths {
@@ -265,12 +280,26 @@ export default function ISOCommissionsPage() {
   // SWR hook for cached data fetching
   const { data, error: swrError, isLoading: loading } = useISOCommissions()
   const error = swrError?.message ?? null
+  const { mutate } = useSWRConfig()
+
+  // Selection state
+  const {
+    selectedIds,
+    isSelected,
+    toggle,
+    selectAll,
+    clearSelection,
+    selectedCount,
+    isAllSelected,
+    isIndeterminate,
+  } = useSelectionState()
 
   const [tableState, setTableState] = useState<ISOCommissionTableState>(() => ({
     ...DEFAULT_ISO_COMMISSION_TABLE_STATE,
   }))
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(getStoredWidths)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   const handleColumnWidthChange = useCallback((columnId: string, width: number) => {
     setColumnWidths(prev => {
@@ -307,6 +336,9 @@ export default function ISOCommissionsPage() {
     return { groups, flatData: sorted }
   }, [data, tableState, expandedGroups])
 
+  // Get all row IDs for select-all
+  const allRowIds = useMemo(() => processedData.flatData.map(r => r.id), [processedData.flatData])
+
   // Calculate summary from filtered data
   const summary = useMemo(() => calculateCommissionSummary(processedData.flatData), [processedData.flatData])
 
@@ -339,6 +371,117 @@ export default function ISOCommissionsPage() {
       isExpanded: expandedGroups.has(group.groupKey),
     }))
   }, [tableState.groupBy, processedData.groups, paginatedFlatData, expandedGroups])
+
+  // Bulk action handlers
+  const handleBulkMarkAsPaid = useCallback(async () => {
+    setIsUpdating(true)
+    try {
+      await updateISOCommissionsPaid(Array.from(selectedIds), true, getTodayDate())
+      await mutate('iso-commissions')
+      clearSelection()
+      toast.success(`${selectedIds.size} commissions marked as paid`)
+    } catch (err) {
+      toast.error('Failed to update commissions')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [selectedIds, mutate, clearSelection])
+
+  const handleBulkMarkAsClawback = useCallback(async () => {
+    setIsUpdating(true)
+    try {
+      // Get funded_deal_ids from selected rows
+      const fundedDealIds = Array.from(selectedIds)
+        .map(id => {
+          const row = processedData.flatData.find(r => r.id === id)
+          return row?.funded_deal_id
+        })
+        .filter((id): id is string => Boolean(id))
+
+      if (fundedDealIds.length > 0) {
+        await createClawbacks(fundedDealIds, 'iso')
+        await mutate('iso-commissions')
+        clearSelection()
+        toast.success('Clawback recorded')
+      }
+    } catch (err) {
+      toast.error('Failed to record clawback')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [selectedIds, processedData.flatData, mutate, clearSelection])
+
+  // Single row handlers
+  const handleTogglePaidStatus = useCallback(async (row: CommissionPayoutISO) => {
+    setIsUpdating(true)
+    try {
+      await updateISOCommissionsPaid([row.id], !row.paid, row.paid ? null : getTodayDate())
+      await mutate('iso-commissions')
+      toast.success(row.paid ? 'Commission marked as unpaid' : 'Commission marked as paid')
+    } catch (err) {
+      toast.error('Failed to update commission')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [mutate])
+
+  const handleUpdatePaidDate = useCallback(async (row: CommissionPayoutISO, newDate: string) => {
+    try {
+      await updateISOPaidDate(row.id, newDate)
+      await mutate('iso-commissions')
+      toast.success('Paid date updated')
+    } catch (err) {
+      toast.error('Failed to update paid date')
+      console.error(err)
+    }
+  }, [mutate])
+
+  const handleMarkAsPaid = useCallback(async (row: CommissionPayoutISO) => {
+    setIsUpdating(true)
+    try {
+      await updateISOCommissionsPaid([row.id], true, getTodayDate())
+      await mutate('iso-commissions')
+      toast.success('Commission marked as paid')
+    } catch (err) {
+      toast.error('Failed to update commission')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [mutate])
+
+  const handleMarkAsUnpaid = useCallback(async (row: CommissionPayoutISO) => {
+    setIsUpdating(true)
+    try {
+      await updateISOCommissionsPaid([row.id], false, null)
+      await mutate('iso-commissions')
+      toast.success('Commission marked as unpaid')
+    } catch (err) {
+      toast.error('Failed to update commission')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [mutate])
+
+  const handleMarkAsClawback = useCallback(async (row: CommissionPayoutISO) => {
+    setIsUpdating(true)
+    try {
+      if (row.funded_deal_id) {
+        await createClawbacks([row.funded_deal_id], 'iso')
+        await mutate('iso-commissions')
+        toast.success('Clawback recorded')
+      }
+    } catch (err) {
+      toast.error('Failed to record clawback')
+      console.error(err)
+    } finally {
+      setIsUpdating(false)
+    }
+  }, [mutate])
 
   // Handlers
   const handleStateChange = useCallback((newState: ISOCommissionTableState) => {
@@ -429,6 +572,42 @@ export default function ISOCommissionsPage() {
     processedData.flatData.length
   )
 
+  // Render cell content
+  const renderCellContent = (column: typeof ISO_COMMISSION_COLUMNS[number], row: CommissionPayoutISO) => {
+    switch (column.id) {
+      case 'deal_name':
+        return row.deal_name
+      case 'iso_name':
+        return row.iso_name
+      case 'lender':
+        return row.lender
+      case 'funded_date':
+        return row.funded_date
+      case 'funded_amount':
+        return formatCurrency(row.funded_amount || 0)
+      case 'commission':
+        return formatCurrency(row.commission_amount || 0)
+      case 'paid_to_iso':
+        return (
+          <PaymentStatusBadge
+            paid={row.paid}
+            onToggle={() => handleTogglePaidStatus(row)}
+            isLoading={isUpdating}
+          />
+        )
+      case 'paid_date':
+        return (
+          <EditableDateCell
+            value={row.paid_date}
+            onSave={(newDate) => handleUpdatePaidDate(row, newDate)}
+            disabled={!row.paid}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -498,6 +677,15 @@ export default function ISOCommissionsPage() {
               <Table className="table-fixed">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    {/* Checkbox column header */}
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={isAllSelected(allRowIds)}
+                        onCheckedChange={() => selectAll(allRowIds)}
+                        aria-label="Select all"
+                        className={isIndeterminate(allRowIds) ? 'data-[state=checked]:bg-primary/50' : ''}
+                      />
+                    </TableHead>
                     {visibleColumnDefs.map((column) => (
                       <SortableHeader
                         key={column.id}
@@ -521,12 +709,12 @@ export default function ISOCommissionsPage() {
                 <TableBody>
                   {loading ? (
                     Array.from({ length: 10 }).map((_, i) => (
-                      <SkeletonRow key={i} columnCount={visibleColumnDefs.length} />
+                      <SkeletonRow key={i} columnCount={visibleColumnDefs.length + 1} />
                     ))
                   ) : processedData.flatData.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={visibleColumnDefs.length}
+                        colSpan={visibleColumnDefs.length + 1}
                         className="h-24 text-center text-muted-foreground"
                       >
                         No commissions found for the selected filters.
@@ -534,37 +722,43 @@ export default function ISOCommissionsPage() {
                     </TableRow>
                   ) : tableState.groupBy === 'none' ? (
                     paginatedFlatData.map((row, index) => (
-                      <TableRow
+                      <RowContextMenu
                         key={row.id}
-                        className={index % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
+                        isPaid={row.paid === true}
+                        onMarkAsPaid={() => handleMarkAsPaid(row)}
+                        onMarkAsUnpaid={() => handleMarkAsUnpaid(row)}
+                        onMarkAsClawback={() => handleMarkAsClawback(row)}
+                        disabled={isUpdating}
                       >
-                        {visibleColumnDefs.map((column) => {
-                          const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
-                          return (
-                            <TableCell
-                              key={column.id}
-                              className={`${column.align === 'right' ? 'text-right font-mono' : column.align === 'center' ? 'text-center' : ''} ${
-                                column.id === 'deal_name' ? 'font-medium' : ''
-                              }`}
-                              style={{ width: `${width}px`, maxWidth: `${width}px` }}
-                            >
-                              <div className="truncate">
-                                {column.id === 'deal_name' && row.deal_name}
-                                {column.id === 'iso_name' && row.iso_name}
-                                {column.id === 'lender' && row.lender}
-                                {column.id === 'funded_date' && row.funded_date}
-                                {column.id === 'funded_amount' && formatCurrency(row.funded_amount || 0)}
-                                {column.id === 'commission' && formatCurrency(row.commission_amount || 0)}
-                                {column.id === 'paid_to_iso' && (
-                                  <Badge variant={row.paid ? 'default' : 'secondary'}>
-                                    {row.paid ? 'Paid' : 'Pending'}
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                          )
-                        })}
-                      </TableRow>
+                        <TableRow
+                          className={`${index % 2 === 0 ? 'bg-white' : 'bg-muted/20'} ${isSelected(row.id) ? 'bg-primary/5' : ''}`}
+                        >
+                          {/* Checkbox column */}
+                          <TableCell className="w-10">
+                            <Checkbox
+                              checked={isSelected(row.id)}
+                              onCheckedChange={() => toggle(row.id)}
+                              aria-label={`Select ${row.deal_name}`}
+                            />
+                          </TableCell>
+                          {visibleColumnDefs.map((column) => {
+                            const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
+                            return (
+                              <TableCell
+                                key={column.id}
+                                className={`${column.align === 'right' ? 'text-right font-mono' : column.align === 'center' ? 'text-center' : ''} ${
+                                  column.id === 'deal_name' ? 'font-medium' : ''
+                                }`}
+                                style={{ width: `${width}px`, maxWidth: `${width}px` }}
+                              >
+                                <div className="truncate">
+                                  {renderCellContent(column, row)}
+                                </div>
+                              </TableCell>
+                            )
+                          })}
+                        </TableRow>
+                      </RowContextMenu>
                     ))
                   ) : (
                     displayGroups.map((group) => (
@@ -574,6 +768,13 @@ export default function ISOCommissionsPage() {
                         visibleColumns={visibleColumnDefs}
                         columnWidths={columnWidths}
                         onToggle={() => handleToggleGroup(group.groupKey)}
+                        isSelected={isSelected}
+                        toggle={toggle}
+                        renderCellContent={renderCellContent}
+                        handleMarkAsPaid={handleMarkAsPaid}
+                        handleMarkAsUnpaid={handleMarkAsUnpaid}
+                        handleMarkAsClawback={handleMarkAsClawback}
+                        isUpdating={isUpdating}
                       />
                     ))
                   )}
@@ -634,6 +835,15 @@ export default function ISOCommissionsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Bulk Action Bar */}
+        <BulkActionBar
+          selectedCount={selectedCount}
+          onMarkAsPaid={handleBulkMarkAsPaid}
+          onMarkAsClawback={handleBulkMarkAsClawback}
+          onClear={clearSelection}
+          isLoading={isUpdating}
+        />
       </div>
     </>
   )
@@ -645,53 +855,73 @@ function GroupRows({
   visibleColumns,
   columnWidths,
   onToggle,
+  isSelected,
+  toggle,
+  renderCellContent,
+  handleMarkAsPaid,
+  handleMarkAsUnpaid,
+  handleMarkAsClawback,
+  isUpdating,
 }: {
   group: ISOCommissionGroupedData
   visibleColumns: typeof ISO_COMMISSION_COLUMNS
   columnWidths: ColumnWidths
   onToggle: () => void
+  isSelected: (id: string) => boolean
+  toggle: (id: string) => void
+  renderCellContent: (column: typeof ISO_COMMISSION_COLUMNS[number], row: CommissionPayoutISO) => React.ReactNode
+  handleMarkAsPaid: (row: CommissionPayoutISO) => void
+  handleMarkAsUnpaid: (row: CommissionPayoutISO) => void
+  handleMarkAsClawback: (row: CommissionPayoutISO) => void
+  isUpdating: boolean
 }) {
   return (
     <>
       <GroupHeader
         group={group}
-        columnCount={visibleColumns.length}
+        columnCount={visibleColumns.length + 1}
         isExpanded={group.isExpanded}
         onToggle={onToggle}
       />
       {group.isExpanded &&
         group.rows.map((row, index) => (
-          <TableRow
+          <RowContextMenu
             key={row.id}
-            className={index % 2 === 0 ? 'bg-white' : 'bg-muted/20'}
+            isPaid={row.paid === true}
+            onMarkAsPaid={() => handleMarkAsPaid(row)}
+            onMarkAsUnpaid={() => handleMarkAsUnpaid(row)}
+            onMarkAsClawback={() => handleMarkAsClawback(row)}
+            disabled={isUpdating}
           >
-            {visibleColumns.map((column) => {
-              const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
-              return (
-                <TableCell
-                  key={column.id}
-                  className={`${column.align === 'right' ? 'text-right font-mono' : column.align === 'center' ? 'text-center' : ''} ${
-                    column.id === 'deal_name' ? 'font-medium pl-8' : ''
-                  }`}
-                  style={{ width: `${width}px`, maxWidth: `${width}px` }}
-                >
-                  <div className="truncate">
-                    {column.id === 'deal_name' && row.deal_name}
-                    {column.id === 'iso_name' && row.iso_name}
-                    {column.id === 'lender' && row.lender}
-                    {column.id === 'funded_date' && row.funded_date}
-                    {column.id === 'funded_amount' && formatCurrency(row.funded_amount || 0)}
-                    {column.id === 'commission' && formatCurrency(row.commission_amount || 0)}
-                    {column.id === 'paid_to_iso' && (
-                      <Badge variant={row.paid ? 'default' : 'secondary'}>
-                        {row.paid ? 'Paid' : 'Pending'}
-                      </Badge>
-                    )}
-                  </div>
-                </TableCell>
-              )
-            })}
-          </TableRow>
+            <TableRow
+              className={`${index % 2 === 0 ? 'bg-white' : 'bg-muted/20'} ${isSelected(row.id) ? 'bg-primary/5' : ''}`}
+            >
+              {/* Checkbox column */}
+              <TableCell className="w-10">
+                <Checkbox
+                  checked={isSelected(row.id)}
+                  onCheckedChange={() => toggle(row.id)}
+                  aria-label={`Select ${row.deal_name}`}
+                />
+              </TableCell>
+              {visibleColumns.map((column) => {
+                const width = columnWidths[column.id] || DEFAULT_COLUMN_WIDTHS[column.id] || 100
+                return (
+                  <TableCell
+                    key={column.id}
+                    className={`${column.align === 'right' ? 'text-right font-mono' : column.align === 'center' ? 'text-center' : ''} ${
+                      column.id === 'deal_name' ? 'font-medium pl-8' : ''
+                    }`}
+                    style={{ width: `${width}px`, maxWidth: `${width}px` }}
+                  >
+                    <div className="truncate">
+                      {renderCellContent(column, row)}
+                    </div>
+                  </TableCell>
+                )
+              })}
+            </TableRow>
+          </RowContextMenu>
         ))}
     </>
   )
