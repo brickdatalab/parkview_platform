@@ -267,9 +267,6 @@ export default function RepsCommissionsPage() {
   const { data, error: swrError, isLoading: loading } = useRepCommissions()
   const error = swrError?.message ?? null
 
-  // Calculate summary for cards
-  const summary = useMemo(() => calculateCommissionSummary(data), [data])
-
   const [tableState, setTableState] = useState<RepCommissionTableState>(() => ({
     ...DEFAULT_REP_COMMISSION_TABLE_STATE,
   }))
@@ -310,6 +307,9 @@ export default function RepsCommissionsPage() {
 
     return { groups, flatData: sorted }
   }, [data, tableState, expandedGroups])
+
+  // Calculate summary from filtered data
+  const summary = useMemo(() => calculateCommissionSummary(processedData.flatData), [processedData.flatData])
 
   // Pagination
   const totalPages = tableState.pageSize === -1 ? 1 : Math.ceil(processedData.flatData.length / tableState.pageSize)

@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/select'
 import { ColumnVisibility } from './column-visibility'
 import { SavedViews } from './saved-views'
-import type { TableState, GroupByOption, ColumnId, ColumnFilter } from '@/types/table'
-import { GROUP_BY_OPTIONS, ALL_COLUMNS } from '@/types/table'
+import { QuickFilters } from './quick-filters'
+import type { TableState, GroupByOption, ColumnId, ColumnFilter, QuickFilters as QuickFiltersType } from '@/types/table'
+import { GROUP_BY_OPTIONS, ALL_COLUMNS, DEFAULT_QUICK_FILTERS } from '@/types/table'
 import { hasActiveFilters, getActiveFilterCount, resetToDefault } from '@/lib/table-utils'
 
 interface TableToolbarProps {
@@ -71,6 +72,15 @@ export function TableToolbar({
       filters: [],
       dateRange: { startDate: null, endDate: null },
       searchQuery: '',
+      quickFilters: DEFAULT_QUICK_FILTERS,
+      currentPage: 1,
+    })
+  }
+
+  const handleQuickFiltersChange = (quickFilters: QuickFiltersType) => {
+    onStateChange({
+      ...state,
+      quickFilters,
       currentPage: 1,
     })
   }
@@ -184,7 +194,13 @@ export function TableToolbar({
           </Select>
         </div>
 
-        <div className="flex-1" />
+        {/* Quick Filters */}
+        <div className="flex-1 flex justify-center">
+          <QuickFilters
+            filters={state.quickFilters || DEFAULT_QUICK_FILTERS}
+            onChange={handleQuickFiltersChange}
+          />
+        </div>
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">

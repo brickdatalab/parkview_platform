@@ -334,6 +334,15 @@ export function FundedDealsTable({
   const totalPages = getTotalPages(processedData.flatData.length, tableState.pageSize)
   const paginatedFlatData = paginateData(processedData.flatData, tableState.pageSize, tableState.currentPage)
 
+  // Notify parent of filtered data changes (use length + first ID as stable dependency)
+  const filteredDataKey = `${processedData.flatData.length}-${processedData.flatData[0]?.id ?? 'empty'}`
+  useEffect(() => {
+    if (onFilteredDataChange) {
+      onFilteredDataChange(processedData.flatData)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredDataKey, onFilteredDataChange])
+
   // For grouped view, we paginate the groups differently
   const displayGroups = useMemo(() => {
     if (tableState.groupBy === 'none') {

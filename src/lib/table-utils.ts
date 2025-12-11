@@ -198,8 +198,58 @@ function applyDateRangeFilter(deals: FundedDeal[], dateRange: DateRangeFilter): 
 /**
  * Apply all filters to deals
  */
+/**
+ * Apply quick filters
+ */
+function applyQuickFilters(deals: FundedDeal[], quickFilters: TableState['quickFilters']): FundedDeal[] {
+  let filtered = deals
+
+  // ISO Only - rep is an ISO partner
+  if (quickFilters.isoOnly) {
+    filtered = filtered.filter(deal => deal.rep_is_iso === true)
+  }
+
+  // In-House Only - lender is in-house funded
+  if (quickFilters.inhouseOnly) {
+    filtered = filtered.filter(deal => deal.lender_inhouse_funded === true)
+  }
+
+  // New Business - deal_type is 'New Business'
+  if (quickFilters.newBusinessOnly) {
+    filtered = filtered.filter(deal => deal.deal_type === 'New Business')
+  }
+
+  // Pending Payment - funder hasn't paid Parkview yet
+  if (quickFilters.pendingPayment) {
+    filtered = filtered.filter(deal => deal.funder_paid_parkview !== true)
+  }
+
+  // This Month - funded date is in current month
+  if (quickFilters.thisMonth) {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+    filtered = filtered.filter(deal => {
+      const date = parseDate(deal.funded_date)
+      return date && date.getMonth() === currentMonth && date.getFullYear() === currentYear
+    })
+  }
+
+  // LOC Only - is_loc is true
+  if (quickFilters.locOnly) {
+    filtered = filtered.filter(deal => deal.is_loc === true)
+  }
+
+  return filtered
+}
+
 export function filterDeals(deals: FundedDeal[], state: TableState): FundedDeal[] {
   let filtered = deals
+
+  // Apply quick filters first
+  if (state.quickFilters) {
+    filtered = applyQuickFilters(filtered, state.quickFilters)
+  }
 
   // Apply search
   filtered = applySearchFilter(filtered, state.searchQuery)

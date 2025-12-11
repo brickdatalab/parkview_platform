@@ -32,6 +32,8 @@ export interface Database {
           funder_paid_parkview: boolean | null
           created_at: string | null
           updated_at: string | null
+          is_loc: boolean | null
+          business_main_id: string | null
         }
       }
       commission_payout: {
@@ -74,7 +76,13 @@ export interface Database {
   }
 }
 
-export type FundedDeal = Database['public']['Tables']['funded_deals']['Row']
+export type FundedDealRow = Database['public']['Tables']['funded_deals']['Row']
+
+// Extended FundedDeal with joined fields for quick filters
+export interface FundedDeal extends FundedDealRow {
+  rep_is_iso?: boolean | null
+  lender_inhouse_funded?: boolean | null
+}
 export type CommissionPayout = Database['public']['Tables']['commission_payout']['Row']
 export type Rep = Database['public']['Tables']['reps']['Row']
 export type Lender = Database['public']['Tables']['lenders']['Row']

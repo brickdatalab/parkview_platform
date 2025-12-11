@@ -266,9 +266,6 @@ export default function ISOCommissionsPage() {
   const { data, error: swrError, isLoading: loading } = useISOCommissions()
   const error = swrError?.message ?? null
 
-  // Calculate summary for cards
-  const summary = useMemo(() => calculateCommissionSummary(data), [data])
-
   const [tableState, setTableState] = useState<ISOCommissionTableState>(() => ({
     ...DEFAULT_ISO_COMMISSION_TABLE_STATE,
   }))
@@ -309,6 +306,9 @@ export default function ISOCommissionsPage() {
 
     return { groups, flatData: sorted }
   }, [data, tableState, expandedGroups])
+
+  // Calculate summary from filtered data
+  const summary = useMemo(() => calculateCommissionSummary(processedData.flatData), [processedData.flatData])
 
   // Pagination
   const totalPages = tableState.pageSize === -1 ? 1 : Math.ceil(processedData.flatData.length / tableState.pageSize)

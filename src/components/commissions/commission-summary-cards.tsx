@@ -1,7 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { formatCurrency } from '@/lib/queries'
 import { DollarSign, FileText, Clock, CheckCircle } from 'lucide-react'
+import { MetricCard } from '@/components/dashboard/MetricCard'
 
 interface CommissionSummary {
   totalDeals: number
@@ -23,72 +21,47 @@ export function CommissionSummaryCards({
   isLoading,
   variant = 'rep',
 }: CommissionSummaryCardsProps) {
-  const cards = [
-    {
-      title: 'Total Deals',
-      value: summary.totalDeals.toString(),
-      icon: FileText,
-      description: `${variant === 'rep' ? 'Rep' : 'ISO'} commission records`,
-    },
-    {
-      title: 'Total Commission',
-      value: formatCurrency(summary.totalCommission),
-      icon: DollarSign,
-      description: 'Combined commission value',
-    },
-    {
-      title: 'Pending',
-      value: formatCurrency(summary.pendingAmount),
-      icon: Clock,
-      description: `${summary.pendingCount} deals awaiting payment`,
-      className: 'text-amber-600',
-    },
-    {
-      title: 'Paid',
-      value: formatCurrency(summary.paidAmount),
-      icon: CheckCircle,
-      description: `${summary.paidCount} deals completed`,
-      className: 'text-green-600',
-    },
-  ]
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {cards.map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-4" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-32 mb-1" />
-              <Skeleton className="h-3 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
+  const entityLabel = variant === 'rep' ? 'Rep' : 'ISO'
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.title}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className={`text-sm font-medium ${card.className || 'text-muted-foreground'}`}>
-              {card.title}
-            </CardTitle>
-            <card.icon className={`h-4 w-4 ${card.className || 'text-muted-foreground'}`} />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${card.className || ''}`}>
-              {card.value}
-            </div>
-            <p className="text-xs text-muted-foreground">{card.description}</p>
-          </CardContent>
-        </Card>
-      ))}
+      <MetricCard
+        title="Total Deals"
+        value={summary.totalDeals}
+        subtitle={`${entityLabel} commission records`}
+        icon={FileText}
+        isCurrency={false}
+        isLoading={isLoading}
+      />
+
+      <MetricCard
+        title="Total Commission"
+        value={summary.totalCommission}
+        subtitle="Combined commission value"
+        icon={DollarSign}
+        isCurrency={true}
+        isLoading={isLoading}
+      />
+
+      <MetricCard
+        title="Pending"
+        value={summary.pendingAmount}
+        subtitle={`${summary.pendingCount} deals awaiting payment`}
+        icon={Clock}
+        isCurrency={true}
+        variant="warning"
+        isLoading={isLoading}
+      />
+
+      <MetricCard
+        title="Paid"
+        value={summary.paidAmount}
+        subtitle={`${summary.paidCount} deals completed`}
+        icon={CheckCircle}
+        isCurrency={true}
+        variant="success"
+        isLoading={isLoading}
+      />
     </div>
   )
 }

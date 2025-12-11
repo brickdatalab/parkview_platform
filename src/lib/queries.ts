@@ -93,8 +93,9 @@ function isInQuarter(dateStr: string | null, quarter: string, year: number): boo
 }
 
 /**
- * Fetch all funded deals from Supabase
+ * Fetch all funded deals from Supabase with joined rep/lender data
  * Uses pagination to bypass Supabase's default 1000 row limit
+ * Includes rep_is_iso and lender_inhouse_funded for quick filters
  */
 export async function fetchFundedDeals(): Promise<FundedDeal[]> {
   const allDeals: FundedDeal[] = []
@@ -105,7 +106,11 @@ export async function fetchFundedDeals(): Promise<FundedDeal[]> {
   while (hasMore) {
     const { data, error } = await createClient()
       .from('funded_deals')
-      .select('*')
+      .select(`
+        *,
+        reps:rep_id(iso),
+        lenders:lender_id(inhouse_funded)
+      `)
       .order('funded_date', { ascending: false })
       .range(offset, offset + pageSize - 1)
 
@@ -115,7 +120,16 @@ export async function fetchFundedDeals(): Promise<FundedDeal[]> {
     }
 
     if (data && data.length > 0) {
-      allDeals.push(...data)
+      // Transform to flatten joined data
+      const transformedDeals = data.map(deal => {
+        const { reps, lenders, ...rest } = deal as Record<string, unknown>
+        return {
+          ...rest,
+          rep_is_iso: (reps as { iso?: boolean } | null)?.iso ?? null,
+          lender_inhouse_funded: (lenders as { inhouse_funded?: boolean } | null)?.inhouse_funded ?? null,
+        } as FundedDeal
+      })
+      allDeals.push(...transformedDeals)
       offset += pageSize
       hasMore = data.length === pageSize
     } else {

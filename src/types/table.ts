@@ -178,6 +178,25 @@ export interface GroupTotals {
   avgFactorRate: number
 }
 
+// Quick filter options
+export interface QuickFilters {
+  isoOnly: boolean
+  inhouseOnly: boolean
+  newBusinessOnly: boolean
+  pendingPayment: boolean
+  thisMonth: boolean
+  locOnly: boolean
+}
+
+export const DEFAULT_QUICK_FILTERS: QuickFilters = {
+  isoOnly: false,
+  inhouseOnly: false,
+  newBusinessOnly: false,
+  pendingPayment: false,
+  thisMonth: false,
+  locOnly: false,
+}
+
 // Complete table state
 export interface TableState {
   visibleColumns: ColumnId[]
@@ -188,6 +207,7 @@ export interface TableState {
   searchQuery: string
   pageSize: number
   currentPage: number
+  quickFilters: QuickFilters
 }
 
 // Saved view
@@ -209,6 +229,7 @@ export const DEFAULT_TABLE_STATE: TableState = {
   searchQuery: '',
   pageSize: 50,
   currentPage: 1,
+  quickFilters: DEFAULT_QUICK_FILTERS,
 }
 
 // Page size options

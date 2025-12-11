@@ -1,78 +1,207 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { MessageSquare, Send, Bot } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import useSWR, { mutate } from 'swr'
 import { SiteHeader } from '@/components/layout/site-header'
+import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { ChatInterface, type ChatInterfaceHandle } from '@/components/chat/ChatInterface'
+import type { Conversation, Message } from '@/types/chat'
+
+const fetcher = (url: string) => fetch(url).then(res => res.json())
 
 export default function ChatPage() {
-  const [message, setMessage] = useState('')
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+
+  // Use ref to track the active conversation for async operations
+  const activeConvRef = useRef<string | null>(null)
+  activeConvRef.current = activeConversationId
+
+  // Ref to focus chat input
+  const chatInterfaceRef = useRef<ChatInterfaceHandle>(null)
+
+  // Flag to skip fetching messages when we just created a conversation
+  const skipFetchRef = useRef(false)
+
+  // Fetch conversations list
+  const { data: conversations = [], isLoading: conversationsLoading } = useSWR<Conversation[]>(
+    '/api/chat/conversations',
+    fetcher,
+    { revalidateOnFocus: false }
+  )
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!activeConversationId) {
+      setMessages([])
+      return
+    }
+
+    // Skip fetch if we just created this conversation (we're managing messages locally)
+    if (skipFetchRef.current) {
+      skipFetchRef.current = false
+      return
+    }
+
+    setIsLoading(true)
+    fetch(`/api/chat/conversations/${activeConversationId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.messages) {
+          setMessages(data.messages)
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false))
+  }, [activeConversationId])
+
+  // Start new chat - just reset to blank state, don't create in DB yet
+  const handleNewConversation = useCallback(() => {
+    setActiveConversationId(null)
+    setMessages([])
+    // Focus the input after a brief delay to ensure state has updated
+    setTimeout(() => chatInterfaceRef.current?.focusInput(), 0)
+  }, [])
+
+  // Delete conversation
+  const handleDeleteConversation = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/chat/conversations/${id}`, { method: 'DELETE' })
+      await mutate('/api/chat/conversations')
+      if (activeConvRef.current === id) {
+        setActiveConversationId(null)
+        setMessages([])
+      }
+    } catch (e) {
+      console.error('Failed to delete conversation:', e)
+    }
+  }, [])
+
+  // Send message to a specific conversation
+  const sendToConversation = useCallback(async (convId: string, content: string) => {
+    // Optimistically add user message
+    const tempUserMsg: Message = {
+      id: `temp-${Date.now()}`,
+      conversation_id: convId,
+      role: 'user',
+      content,
+      created_at: new Date().toISOString()
+    }
+    setMessages(prev => [...prev, tempUserMsg])
+    setIsSending(true)
+
+    try {
+      const res = await fetch(`/api/chat/conversations/${convId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: content })
+      })
+
+      const data = await res.json()
+
+      if (data.error) {
+        // Add error message
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            conversation_id: convId,
+            role: 'assistant',
+            content: `Error: ${data.error}`,
+            created_at: new Date().toISOString()
+          }
+        ])
+      } else {
+        // Add assistant response
+        setMessages(prev => [
+          ...prev,
+          {
+            id: data.id || `resp-${Date.now()}`,
+            conversation_id: convId,
+            role: 'assistant',
+            content: data.message,
+            created_at: new Date().toISOString()
+          }
+        ])
+      }
+
+      // Refresh conversations to update title
+      await mutate('/api/chat/conversations')
+    } catch (e) {
+      console.error('Failed to send message:', e)
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `error-${Date.now()}`,
+          conversation_id: convId,
+          role: 'assistant',
+          content: 'Failed to send message. Please try again.',
+          created_at: new Date().toISOString()
+        }
+      ])
+    } finally {
+      setIsSending(false)
+    }
+  }, [])
+
+  // Handle sending a message
+  const handleSendMessage = useCallback(async (content: string) => {
+    if (!activeConvRef.current) {
+      // Create new conversation first
+      try {
+        setIsSending(true)
+        const res = await fetch('/api/chat/conversations', { method: 'POST' })
+        const newConv = await res.json()
+
+        if (newConv.error) {
+          console.error('Failed to create conversation:', newConv.error)
+          setIsSending(false)
+          return
+        }
+
+        // Skip the useEffect fetch since we'll manage messages locally
+        skipFetchRef.current = true
+        await mutate('/api/chat/conversations')
+        setActiveConversationId(newConv.id)
+
+        // Send to the new conversation
+        await sendToConversation(newConv.id, content)
+      } catch (e) {
+        console.error('Failed to create conversation:', e)
+        setIsSending(false)
+      }
+    } else {
+      await sendToConversation(activeConvRef.current, content)
+    }
+  }, [sendToConversation])
 
   return (
     <div className="flex h-full flex-col">
-      <SiteHeader
-        title="Chat with Master Funder"
-      />
+      <SiteHeader title="" />
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-3xl">
-          {/* Coming Soon Card */}
-          <Card className="border-dashed border-2 bg-gradient-to-br from-violet-50 to-purple-50">
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 mb-4">
-                <Bot className="h-8 w-8 text-white" />
-              </div>
-              <h2 className="text-xl font-semibold text-zinc-900 mb-2 text-center">
-                AI Assistant is at the Bar having drinks. Check back tomorrow when they've sobered up.
-              </h2>
-              <p className="text-center text-zinc-600 max-w-md mb-6">
-                Soon you'll be able to ask questions like:
-              </p>
-              <div className="space-y-2 text-sm text-zinc-600">
-                <div className="flex items-center gap-2 bg-white/80 rounded-lg px-4 py-2">
-                  <MessageSquare className="h-4 w-4 text-violet-500" />
-                  "What were our total commissions last month?"
-                </div>
-                <div className="flex items-center gap-2 bg-white/80 rounded-lg px-4 py-2">
-                  <MessageSquare className="h-4 w-4 text-violet-500" />
-                  "Which rep had the highest funded amount in Q4?"
-                </div>
-                <div className="flex items-center gap-2 bg-white/80 rounded-lg px-4 py-2">
-                  <MessageSquare className="h-4 w-4 text-violet-500" />
-                  "Show me deals with factor rates above 1.35"
-                </div>
-                <div className="flex items-center gap-2 bg-white/80 rounded-lg px-4 py-2">
-                  <MessageSquare className="h-4 w-4 text-violet-500" />
-                  "What's the average deal size by lender?"
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar - conversation list */}
+        <div className="w-72 shrink-0 overflow-hidden">
+          <ChatSidebar
+            conversations={conversations}
+            activeId={activeConversationId}
+            onSelect={setActiveConversationId}
+            onNew={handleNewConversation}
+            onDelete={handleDeleteConversation}
+            isLoading={conversationsLoading || isLoading}
+          />
         </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="border-t bg-white px-6 py-4">
-        <div className="mx-auto max-w-3xl">
-          <div className="flex gap-3">
-            <Input
-              placeholder="Ask a question about your data..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              className="flex-1"
-              disabled
-            />
-            <Button disabled className="gap-2">
-              <Send className="h-4 w-4" />
-              Send
-            </Button>
-          </div>
-          <p className="mt-2 text-xs text-zinc-400 text-center">
-            AI integration coming soon
-          </p>
+        {/* Main chat area */}
+        <div className="flex-1 overflow-hidden">
+          <ChatInterface
+            ref={chatInterfaceRef}
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isSending}
+          />
         </div>
       </div>
     </div>
