@@ -3,7 +3,7 @@
 **Project ID:** `irssizfmrqeqcxwdvkhx`
 **Region:** `us-east-1`
 **Dashboard:** https://supabase.com/dashboard/project/irssizfmrqeqcxwdvkhx
-**Generated:** 2025-12-09
+**Generated:** 2025-12-11
 
 ---
 
@@ -17,6 +17,7 @@
    - [lenders](#lenders)
    - [commission_payout_reps](#commission_payout_reps)
    - [commission_payout_iso](#commission_payout_iso)
+   - [clawbacks](#clawbacks)
    - [internal_funded_form](#internal_funded_form)
    - [schlomo_parkview_deals](#schlomo_parkview_deals)
    - [application](#application)
@@ -58,6 +59,7 @@ This database supports the Parkview Advance platform with two main applications:
 | `reps` | ~134 | Sales representatives |
 | `lenders` | ~112 | Lender lookup |
 | `users` | ~1 | Dashboard users |
+| `clawbacks` | ~0 | Clawback tracking (new table) |
 
 ---
 
@@ -94,6 +96,7 @@ This database supports the Parkview Advance platform with two main applications:
 | `parkview_rep_paid` | boolean | YES | `false` | Rep payment status |
 | `iso_paid` | boolean | YES | `false` | ISO payment status |
 | `funder_paid_parkview` | boolean | YES | `false` | Funder payment status |
+| `funder_paid_date` | timestamptz | YES | - | Date when funder paid Parkview |
 | `created_at` | timestamptz | YES | `now()` | Created timestamp |
 | `updated_at` | timestamptz | YES | `now()` | Updated timestamp |
 | `split_rep` | varchar | YES | - | Second rep name for split commission deals (Form Field 19) |
@@ -255,6 +258,29 @@ This database supports the Parkview Advance platform with two main applications:
 - `commission_payout_iso_paid_idx` - btree on `(paid)`
 - `commission_payout_iso_payment_status_idx` - btree on `(payment_status)`
 - `commission_payout_iso_rep_id_idx` - btree on `(rep_id)`
+
+---
+
+### clawbacks
+
+**Description:** Tracks clawback records for commissions when deals are reversed or cancelled
+
+**RLS Enabled:** Yes
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | uuid | NO | `gen_random_uuid()` | Primary key |
+| `funded_deal_id` | uuid | NO | - | FK to funded_deals |
+| `clawback_type` | text | NO | - | Type: 'rep', 'iso', or 'brokered' |
+| `clawback_date` | timestamptz | NO | `now()` | When clawback occurred |
+| `notes` | text | YES | - | Optional notes |
+| `created_at` | timestamptz | YES | `now()` | Created timestamp |
+| `updated_at` | timestamptz | YES | `now()` | Updated timestamp |
+
+**Primary Key:** `id`
+
+**Foreign Keys:**
+- `clawbacks_funded_deal_id_fkey` references `funded_deals.id`
 
 ---
 
@@ -561,6 +587,7 @@ funded_deals (1) <------ (N) commission_payout_reps
              (1) <------ (N) commission_payout_iso
              (1) <------ (N) schlomo_parkview_deals
              (1) <------ (N) application
+             (1) <------ (N) clawbacks
 ```
 
 ### Foreign Key Details
@@ -568,6 +595,7 @@ funded_deals (1) <------ (N) commission_payout_reps
 | Table | Constraint | Column | References | On Update | On Delete |
 |-------|------------|--------|------------|-----------|-----------|
 | `application` | `application_funded_deal_id_fkey` | `funded_deal_id` | `funded_deals.id` | NO ACTION | SET NULL |
+| `clawbacks` | `clawbacks_funded_deal_id_fkey` | `funded_deal_id` | `funded_deals.id` | NO ACTION | CASCADE |
 | `commission_payout_iso` | `commission_payout_iso_business_main_id_fkey` | `business_main_id` | `business_main.id` | CASCADE | RESTRICT |
 | `commission_payout_iso` | `commission_payout_iso_funded_deal_id_fkey` | `funded_deal_id` | `funded_deals.id` | NO ACTION | CASCADE |
 | `commission_payout_iso` | `commission_payout_iso_rep_id_fkey` | `rep_id` | `reps.id` | NO ACTION | RESTRICT |
@@ -651,6 +679,7 @@ funded_deals (1) <------ (N) commission_payout_reps
 **Note:** The following tables have RLS enabled but no explicit policies defined (access controlled by service role):
 - `application`
 - `business_main`
+- `clawbacks`
 - `commission_payout_iso`
 - `internal_funded_form`
 - `parkview-data`
@@ -914,6 +943,8 @@ The following functions are from the `pg_trgm` extension for trigram-based fuzzy
 | 20251205142255 | add_funded_deals_business_main_fkey | FK constraint |
 | 20251205142307 | add_commission_payout_iso_business_main_fkey | FK constraint |
 | 20251205142321 | add_commission_payout_reps_business_main_fkey | FK constraint |
+| 20251211XXXXXX | add_funder_paid_date_to_funded_deals | Add funder_paid_date column |
+| 20251211XXXXXX | create_clawbacks_table | Clawback tracking |
 
 ---
 
@@ -946,6 +977,8 @@ Gravity Form 37 --> n8n (flow.clearscrub.io) --> Supabase --> Dashboard
    - `commission_payout_iso` - For ISO partner commissions (~1,077 records)
 
 5. **Auto-Generated IDs:** Brokered deals (where `lender.inhouse_funded = FALSE`) automatically get `sdeal_id` values starting with '9' via trigger
+
+6. **Clawback Tracking:** The `clawbacks` table tracks commission clawbacks when deals are reversed or cancelled, with support for rep, ISO, and brokered deal types
 
 ---
 
